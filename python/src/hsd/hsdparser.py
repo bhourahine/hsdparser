@@ -3,6 +3,8 @@ import common_functions as functions
 class HSDParser:
     
     def __init__(self):
+        """Intializes a HSDParser instance.
+        """
         self.signs = ["=", "{", "}", ";", "#", "[", "]", "'", '"', ","]
         self.check_signs = [True, True, True, True, True, True, True, True, True, False]
         self.current_tags = []
@@ -17,21 +19,65 @@ class HSDParser:
         self.flag_options = False
         self.flag_quote = False
         
-    def read(self, fileobject):
-        if type(fileobject) == str:
-            newFile = open(fileobject,"r")
-            self.content = self.newFile.readlines()
-            newFile.close()
-        else:
-            self.content = fileobject.readlines()
-            
-    def feed(self):
-        for ii in self.content:
-            self.parse(ii)
-        self.error()
+    def feed(self, fileobj):
+        """Feeds the parser with data.
         
-    def parse(self, current):
-        sign, current = functions.find_first_occurence(current, self.signs, self.check_signs)
+        Args:
+            fileobj: File like object or name of a file containing the data.
+        """
+        isfilename = isinstance(fileobj, str)
+        if isfilename:
+            fp = open(fileobj, "r")
+        else:
+            fp = fileobj
+        for line in fp.readlines():
+            self._parse(line)
+        if isfilename:
+            fp.close()
+        self._error()
+        
+    def start_handler(self, tagname, options):
+        """Handler which is called when a tag is opened.
+        
+        The default implementation is to print the tag name and the attributes.
+        It should be overriden in the application to handle the event in a
+        customized way.
+        
+        Args:
+            tagname: Name of the tag which had been opened.
+            options: Dictionary of the options (attributes) of the tag. 
+        """
+        if len(options) > 0:
+            print("Start Tag: ", tagname, " with options: ", options)
+        else:
+            print("Start Tag: ", tagname)
+    
+    def close_handler(self, tagname):
+        """Handler which is called when a tag is closed.
+        
+        The default implementation is to print the tag name which had been
+        closed. It should be overriden in the application to handle the
+        event in a customized way.
+        
+        Args:
+            tagname: Name of the tag which had been closed.
+        """ 
+        print("Close Tag: ", tagname)
+    
+    def text_handler(self, text):
+        """Handler which is called with the text found inside a tag.
+        
+        The default implementation is to print the text. It should be overriden
+        in the application to handle the event in a customized way.
+        
+        Args:
+           text: Text in the current tag.
+        """
+        print("Text: ", text)
+                    
+    def _parse(self, current):
+        sign, current = functions.find_first_occurence(current, self.signs,
+                                                       self.check_signs)
         if self.flag_options:
             self.flag_options = False
             if type(current) != str:
@@ -41,97 +87,97 @@ class HSDParser:
                 
         if sign == "=":
             #Start a new tag
-            self.start_tag(current[0])
+            self._starttag(current[0])
             #Set flag
             self.flag_equalsign = True
             #Continue parsing
-            self.parse(current[1])
+            self._parse(current[1])
             
         elif sign == "{":
             #Start a new tag
             if self.flag_equalsign:
                 self.flag_equalsign = False
-                self.start_tag(current[0],True)
+                self._starttag(current[0],True)
             else:
-                self.start_tag(current[0])
+                self._starttag(current[0])
             #Count bracket
             self.brackets += 1
             #Continue parsing
-            self.parse(current[1])
+            self._parse(current[1])
             
         elif sign == "}":
-            #Display text
+            #Display _text
             if self.argument != "":
-                self.text(self.argument)
+                self._text(self.argument)
             elif len(current[0].strip())>0:
-                self.text(current[0])
+                self._text(current[0])
             #Close tag
-            self.close_tag()
+            self._closetag()
             #Count bracket
             self.brackets -= 1
             #Continue parsing
-            self.parse(current[1])
+            self._parse(current[1])
             
         elif sign == ";":
             self.flag_equalsign = False
             if len(current[0].strip()) > 0:
-                self.text(current[0])
-            self.close_tag()
-            self.parse(current[1])
+                self._text(current[0])
+            self._closetag()
+            self._parse(current[1])
             
         elif sign == "#":
             pass
         
         elif sign == "[":
             self.buffer = current[0]
-            self.alter_signs([False, False, False, False, False, False, True, False, False, False])
-            self.parse(current[1])
+            self._altersigns([False, False, False, False, False, False, True, False, False, False])
+            self._parse(current[1])
             
         elif sign == "]":
-            self.parse_option(current[0])
-            self.alter_signs([True, True, True, True, True, True, True, True, True, False])
+            self._parseoption(current[0])
+            self._altersigns([True, True, True, True, True, True, True, True, True, False])
             self.flag_options = True
-            self.parse(current[1])
+            self._parse(current[1])
             
         elif sign == "'":
             if self.flag_quote:
-                self.alter_signs([True, True, True, True, True, True, True, True, True, False])
+                self._altersigns([True, True, True, True, True, True, True, True, True, False])
                 self.flag_quote = False
                 self.quote += current[0]
-                self.parse(current[1])
+                self._parse(current[1])
             else:
-                self.alter_signs([False, False, False, False, False, False, False, True, False, False])
+                self._altersigns([False, False, False, False, False, False, False, True, False, False])
                 self.flag_quote = True
-                self.parse(current[1])
+                self._parse(current[1])
                 
         elif sign == '"':
             if self.flag_quote:
-                self.alter_signs([True, True, True, True, True, True, True, True, True, False])
+                self._altersigns([True, True, True, True, True, True, True, True, True, False])
                 self.flag_quote = False
                 self.quote += current[0]
-                self.parse(current[1])
+                self._parse(current[1])
                 
             else:
-                self.alter_signs([False, False, False, False, False, False, False, False, True, False])
+                self._altersigns([False, False, False, False, False, False, False, False, True, False])
                 self.flag_quote = True
-                self.parse(current[1])
+                self._parse(current[1])
                 
         else:
             if self.flag_equalsign:
                 self.flag_equalsign = False
                 if(len(current.strip())>0) or self.quote != "":
-                    self.text(current)
-                self.close_tag()
+                    self._text(current)
+                self._closetag()
             elif self.brackets != 0:
                 self.argument += current
             if self.flag_quote:
                 self.quote += current
 
-    def alter_signs(self, new_values):
+    def _altersigns(self, new_values):
         for jj in range(len(new_values)):
             self.check_signs[jj] = new_values[jj]
             
-    def text(self, text):
+    def _text(self, text):
         if self.quote != "":
             #Call event handler
             self.text_handler(self.quote)
@@ -141,7 +187,7 @@ class HSDParser:
             #Call event handler
             self.text_handler(text)
             
-    def start_tag(self, tagname, flag_tag=False):
+    def _starttag(self, tagname, flag_tag=False):
         #Reset self.argument
         self.argument = ""
         tagname = tagname.strip()
@@ -152,7 +198,7 @@ class HSDParser:
         self.current_tags.append(tagname)
         self.current_tags_flags.append(flag_tag)
         
-    def close_tag(self):
+    def _closetag(self):
         #Reset self.argument
         self.argument = ""
         #Call event handler
@@ -160,23 +206,11 @@ class HSDParser:
         del self.current_tags[-1]
         if self.current_tags_flags[-1]:
             del self.current_tags_flags[-1]
-            self.close_tag()
+            self._closetag()
         else:
             del self.current_tags_flags[-1]
             
-    def start_handler(self,tagname,option):
-        if len(option) > 0:
-            print("Start Tag: ", tagname, " with options: ", option)
-        else:
-            print("Start Tag: ", tagname)
-    
-    def close_handler(self,tagname):
-        print("Close Tag: ", tagname)
-    
-    def text_handler(self,text):
-        print("Text: ", text)
-    
-    def error(self):
+    def _error(self):
         if len(self.current_tags) != 0:
             self.error_handler(1)
         elif self.flag_quote:
@@ -196,29 +230,27 @@ class HSDParser:
         else:
             print("Error ", error_code)
             
-    def parse_option(self, option):
-        self.alter_signs([True, False, False, False, False, False, False, False, False, True])
+    def _parseoption(self, option):
+        self._altersigns([True, False, False, False, False, False, False, False, False, True])
         sign, current = functions.find_first_occurence(option,self.signs, self.check_signs)
         if sign == "=":
             self.key = current[0]
-            self.parse_option(current[1])
+            self._parseoption(current[1])
         elif sign == ",":
             self.options[self.key] = current[0]
             self.key = ""
-            self.parse_option(current[1])
+            self._parseoption(current[1])
         else:
             if self.key != "":
                 self.options[self.key] = current
             else:
                 self.options["default"] = current
-            self.alter_signs([True, True, True, True, True, True, True, True, True, False])
+            self._altersigns([True, True, True, True, True, True, True, True, True, False])
 
 
 if __name__ == "__main__":
         
-    Datei = open("dftb_pin.hsd", "r")
-    #Datei = open("test.dat","r")
-    newParser = HSDParser()
-    newParser.read(Datei)
-    Datei.close()
-    newParser.feed()
+    fp = open("dftb_pin.hsd", "r")
+    parser = HSDParser()
+    parser.feed(fp)
+    fp.close()
