@@ -1,12 +1,22 @@
-import hsd.common_functions as functions
+from hsd.common import HSDException
+
+class HSDParserError(HSDException):
+    pass
 
 class HSDParser:
+    """Event based parser for the Human-readable Structred data format.
     
-    def __init__(self):
+    The methods start_handler, close_handler, text_handler and error_handler
+    should be overriden by the actual application.
+    """
+    
+    def __init__(self, defattrib="default"):
         """Intializes a HSDParser instance.
         """
+        self.defattrib = defattrib
         self.signs = ["=", "{", "}", ";", "#", "[", "]", "'", '"', ","]
-        self.check_signs = [True, True, True, True, True, True, True, True, True, False]
+        self.check_signs = [ True, True, True, True, True, True, True, True,
+                            True, False ]
         self.current_tags = []
         self.current_tags_flags = []
         self.brackets = 0
@@ -74,10 +84,17 @@ class HSDParser:
            text: Text in the current tag.
         """
         print("Text: ", text)
+        
+    def error_handler(self, error_code):
+        #Errorcode 1: Tag-Error
+        #Errorcode 2: Quotation-Error
+        #Errorcode 3: Bracket-Error
+        raise HSDException("Parsing error (%d)" % error_code)        
+
                     
     def _parse(self, current):
-        sign, current = functions.find_first_occurence(current, self.signs,
-                                                       self.check_signs)
+        sign, current = find_first_occurence(current, self.signs,
+                                             self.check_signs)
         if self.flag_options:
             self.flag_options = False
             if type(current) != str:
@@ -130,35 +147,41 @@ class HSDParser:
         
         elif sign == "[":
             self.buffer = current[0]
-            self._altersigns([False, False, False, False, False, False, True, False, False, False])
+            self._altersigns([ False, False, False, False, False, False, True,
+                              False, False, False ])
             self._parse(current[1])
             
         elif sign == "]":
             self._parseoption(current[0])
-            self._altersigns([True, True, True, True, True, True, True, True, True, False])
+            self._altersigns([ True, True, True, True, True, True, True, True,
+                              True, False ])
             self.flag_options = True
             self._parse(current[1])
             
         elif sign == "'":
             if self.flag_quote:
-                self._altersigns([True, True, True, True, True, True, True, True, True, False])
+                self._altersigns([ True, True, True, True, True, True, True,
+                                  True, True, False ])
                 self.flag_quote = False
                 self.quote += current[0]
                 self._parse(current[1])
             else:
-                self._altersigns([False, False, False, False, False, False, False, True, False, False])
+                self._altersigns([ False, False, False, False, False, False,
+                                  False, True, False, False ])
                 self.flag_quote = True
                 self._parse(current[1])
                 
         elif sign == '"':
             if self.flag_quote:
-                self._altersigns([True, True, True, True, True, True, True, True, True, False])
+                self._altersigns([ True, True, True, True, True, True, True,
+                                  True, True, False ])
                 self.flag_quote = False
                 self.quote += current[0]
                 self._parse(current[1])
                 
             else:
-                self._altersigns([False, False, False, False, False, False, False, False, True, False])
+                self._altersigns([ False, False, False, False, False, False, 
+                                  False, False, True, False ])
                 self.flag_quote = True
                 self._parse(current[1])
                 
@@ -217,22 +240,12 @@ class HSDParser:
             self.error_handler(2)
         elif self.brackets != 0:
             self.error_handler(3)
-        else:
-            self.error_handler(0)
-            
-    def error_handler(self,error_code):
-        #Errorcode 0: Success
-        #Errorcode 1: Tag-Error
-        #Errorcode 2: Quotation-Error
-        #Errorcode 3: Bracket-Error
-        if error_code == 0:
-            print("Success")
-        else:
-            print("Error ", error_code)
-            
+                        
     def _parseoption(self, option):
-        self._altersigns([True, False, False, False, False, False, False, False, False, True])
-        sign, current = functions.find_first_occurence(option,self.signs, self.check_signs)
+        self._altersigns([ True, False, False, False, False, False, False,
+                          False, False, True ])
+        sign, current = find_first_occurence(option,
+                                             self.signs, self.check_signs)
         if sign == "=":
             self.key = current[0]
             self._parseoption(current[1])
@@ -244,8 +257,28 @@ class HSDParser:
             if self.key != "":
                 self.options[self.key] = current
             else:
-                self.options["default"] = current
-            self._altersigns([True, True, True, True, True, True, True, True, True, False])
+                self.options[self.defattrib] = current
+            self._altersigns([ True, True, True, True, True, True, True, True,
+                              True, False ])
+            
+            
+def find_first_occurence(current, signs, check_signs):
+    """Finds the first occurance of given symbols."""
+    pos = []
+    sign = None
+    minpos = len(current)
+    for aa in range(len(signs)):
+        if check_signs[aa]:
+            pos.append(current.find(signs[aa]))
+    for aa in range(len(pos)):
+        if pos[aa] != -1 and pos[aa] < minpos:
+            minpos = pos[aa]
+    if minpos == len(current):
+        return None, current
+    else:
+        sign = current[minpos]
+        current = current.split(sign,1)
+        return sign, current
 
 
 if __name__ == "__main__":
