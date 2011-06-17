@@ -1,4 +1,4 @@
-import common_functions as functions
+import hsd.common_functions as functions
 
 class HSDParser:
     
