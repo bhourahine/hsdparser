@@ -60,10 +60,7 @@ class HSDParser:
             tagname: Name of the tag which had been opened.
             options: Dictionary of the options (attributes) of the tag. 
         """
-        if len(options) > 0:
-            print("Start Tag: ", tagname, " with options: ", options)
-        else:
-            print("Start Tag: ", tagname)
+        pass
     
     def close_handler(self, tagname):
         """Handler which is called when a tag is closed.
@@ -75,7 +72,7 @@ class HSDParser:
         Args:
             tagname: Name of the tag which had been closed.
         """ 
-        print("Close Tag: ", tagname)
+        pass
     
     def text_handler(self, text):
         """Handler which is called with the text found inside a tag.
@@ -86,7 +83,7 @@ class HSDParser:
         Args:
            text: Text in the current tag.
         """
-        print("Text: ", text)
+        pass
         
     def error_handler(self, error_code):
         """Handler which is called if an error was detected during parsing.
@@ -274,23 +271,62 @@ class HSDParser:
             
             
 def find_first_occurrence(current, signs, check_signs):
-    """Finds the first occurance of given symbols."""
-    pos = []
-    sign = None
-    minpos = len(current)
-    for aa in range(len(signs)):
-        if check_signs[aa]:
-            pos.append(current.find(signs[aa]))
-    for aa in range(len(pos)):
-        if pos[aa] != -1 and pos[aa] < minpos:
-            minpos = pos[aa]
+    """Finds the first occurrence of given symbols."""
+    pos = [ current.find(signs[aa]) for aa in range(len(signs))
+           if check_signs[aa] ]
+    pos.append(len(current))
+    minpos = min([ aa for aa in pos if aa != -1 ])
     if minpos == len(current):
         return None, current
     else:
-        sign = current[minpos]
-        current = current.split(sign,1)
-        return sign, current
+        return current[minpos], [ current[:minpos], current[minpos+1:] ]
 
 
 if __name__ == "__main__":
-    pass
+    from io import StringIO
+    from hsd.formatter import HSDStreamFormatter, HSDFormatter
+    formatter = HSDFormatter(closecomments=True)
+    parser = HSDParser(defattrib="unit")
+    streamformatter = HSDStreamFormatter(parser, formatter)
+    stream = StringIO("""Geometry = GenFormat {
+2  S
+Ga As
+1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+2    2    0.13567730000E+01   0.13567730000E+01   0.13567730000E+01
+0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+0.27135460000E+01   0.27135460000E+01   0.00000000000E+00
+0.00000000000E+00   0.27135460000E+01   0.27135460000E+01
+0.27135460000E+01   0.00000000000E+00   0.27135460000E+01
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-007
+  MaxSCCIterations = 1000
+  Mixer = Broyden {}
+  MaxAngularMomentum {
+    Ga = "d"
+    As = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.0E-006
+  }
+  SlaterKosterFiles [format=old] {
+    Ga-Ga = "./Ga-Ga.skf"
+    Ga-As = "./Ga-As.skf"
+    As-Ga = "./As-Ga.skf"
+    As-As = "./As-As.skf"
+  }
+  KPointsAndWeights {
+    0.0 0.0 0.0   1.0
+  }
+}
+
+Options {
+  AtomResolvedEnergies = No
+  RestartFrequency = 20
+  RandomSeed = 0
+  WriteHS = No
+}""")
+    streamformatter.feed(stream)
+    
