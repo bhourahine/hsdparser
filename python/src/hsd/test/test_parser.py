@@ -1,118 +1,82 @@
 import unittest
 import io
 from hsd.parser import HSDParser
+import hsdtests
 
-OPEN = 1
-CLOSE = 2
-TEXT = 3
-ERROR = 4
 
-class EventTestCase(unittest.TestCase):
+class ParserTestCase(unittest.TestCase):
     """Base class for unit tester testing parser events.
     
-    Object launches a parser, feeds the texts in tagtests into the parser and
+    Launches a parser, feeds the texts in _tests into the parser and
     looks whether the handlers where called in the right order with the right
-    arguments. The class variable tagtests contains list of pair-tuples. Each
-    tuple contains the text to be feeded into the parser, and a list of
-    tuples as returned by the customized handlers which representing the
+    arguments. The class variable _tests contains list of pair-tuples. Each
+    tuple contains a list of the equivalent texts to be feeded into the parser,
+    and a list of tuples as returned by the customized handlers representing the
     expected outcome.
     """
-
-    tagtests = []
+    _tests = []
     
-    def start_handler(self, tagname, options):
-        self.result.append((OPEN, tagname, options))
+    def _start_handler(self, tagname, options):
+        self._result.append((hsdtests.OPEN, tagname, options))
         
-    def close_handler(self, tagname):
-        self.result.append((CLOSE, tagname))
+    def _close_handler(self, tagname):
+        self._result.append((hsdtests.CLOSE, tagname))
         
-    def text_handler(self, txt):
-        self.result.append((TEXT, txt))
+    def _text_handler(self, txt):
+        self._result.append((hsdtests.TEXT, txt))
         
-    def error_handler(self, errorcode):
-        self.result.append((ERROR, errorcode))
+    def _error_handler(self, errorcode):
+        self._result.append((hsdtests.ERROR, errorcode))
         
-    def launch_parser(self):
+    def _launch_parser(self):
         return HSDParser()
     
     def setUp(self):
-        self.parser = self.launch_parser()
-        self.parser.start_handler = self.start_handler
-        self.parser.close_handler = self.close_handler
-        self.parser.text_handler = self.text_handler
-        self.parser.error_handler = self.error_handler
-        self.result = []
+        self._parser = self._launch_parser()
+        self._parser.start_handler = self._start_handler
+        self._parser.close_handler = self._close_handler
+        self._parser.text_handler = self._text_handler
+        self._parser.error_handler = self._error_handler
+        self._result = []
         
     def testTags(self):
-        for content, refres in self.tagtests:
-            self.result = []
-            self.parser.feed(io.StringIO(content))
-            self.assertEqual(self.result, refres)
-            
-class ValidInputTestCase(EventTestCase):
-    """Contains valid input examples"""
+        for contents, refres in self._tests:
+            for content in contents:
+                self._result = []
+                self._parser.feed(io.StringIO(content))
+                self.assertEqual(self._result, refres,
+                    self._geterrormsg(content, self._result, refres))
+                
+    def _geterrormsg(self, content, result, refres):
+        return "\n".join([ "Failed!", "Parsed text::", content,
+                          "Expected events::", str(refres),
+                          "Obtained events::", str(result) ])
+
+                                             
+class SimpleTestCase(ParserTestCase):
+    _tests = hsdtests.hsdtests_simple
+
     
-    tagtests = [
-        # Tag without value
-        ("test {}",
-         [(OPEN, "test", {}), (CLOSE, "test") ]),
-        # Tag with bracketed value 
-        ("test { 12 }",
-         [(OPEN, "test", {}), (TEXT, "12"), (CLOSE, "test") ]),
-        # Tag with equaled value
-        ("test = 12",
-         [(OPEN, "test", {}), (TEXT, "12"), (CLOSE, "test") ]),
-        # Tag with default option
-        ("test [value] {}",
-         [(OPEN, "test", {"default": "value"}), (CLOSE, "test") ]),         
-        # Tag with explicit option 
-        #("test [option=value] {}",
-        # [(OPEN, "test", {"option": "value"}), (CLOSE, "test") ]),
-        # Two tags with options
-        #("""test [option=value] {}
-#temperature [kelvin] = 300""",
-        # [ (OPEN, "test", {"option": "value"}), (CLOSE, "test"),
-        #   (OPEN, "temperature", {"default": "kelvin"}), (TEXT, "300"),
-        #   (CLOSE, "temperature")]),
-        # Simple tag with option and value
-        ("temperature [kelvin] = 300",
-         [(OPEN, "temperature", {"default": "kelvin"}),
-          (TEXT, "300"), (CLOSE, "temperature")]),
-        # Tag with text         
-        ("""Geometry = GenFormat {
-              2  S
-Ga As
-  1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
-}
-            """,
-         [(OPEN, "Geometry", {}), (OPEN, "GenFormat", {}),
-          (TEXT, """2  S
-Ga As
-  1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00"""),
-          (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
-        ]
-    
-class DefaultAttribTestCase(EventTestCase):
-    """Valid input examples with changed default attribute name."""
-    
-    tagtests = [
-        # Tag with default option
-        ("test [value] {}",
-         [(OPEN, "test", {"unit": "value"}), (CLOSE, "test") ]),
-        # Tag with default option and value
-        ("test [value] { 12 }",
-         [(OPEN, "test", {"unit": "value"}), (TEXT, "12"), (CLOSE, "test") ]),
-        # Tag with default option and value (=)
-        #("test [value] = 12 }",
-        # [(OPEN, "test", {"unit": "value"}), (TEXT, "12"), (CLOSE, "test") ]),
-        ]
-    
-    def launch_parser(self):
+class DefaultAttribTestCase(ParserTestCase):
+
+    _tests = hsdtests.hsdtests_defattr
+
+    def _launch_parser(self):
         return HSDParser(defattrib="unit")
+    
+    
+class ExpAttribTestCase(ParserTestCase):
+    hsdtests = hsdtests.hsdtests_expattr
 
 
-if __name__ == "__main__":
-    suites = ( unittest.makeSuite(ValidInputTestCase, 'test'),
-               unittest.makeSuite(DefaultAttribTestCase, 'test') )
+def getsuites():
+    """Returns the test suites defined in the module."""
+    return [ unittest.makeSuite(SimpleTestCase, 'test'),
+            unittest.makeSuite(DefaultAttribTestCase, 'test'),
+            unittest.makeSuite(ExpAttribTestCase, 'test'),
+            ]
+
+
+if __name__ == "__main__": 
     runner = unittest.TextTestRunner()
-    runner.run(unittest.TestSuite(suites))
+    runner.run(unittest.TestSuite(getsuites()))

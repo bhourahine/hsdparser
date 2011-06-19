@@ -1,3 +1,4 @@
+import sys
 from hsd.common import HSDException
 
 class HSDParserError(HSDException):
@@ -104,6 +105,7 @@ class HSDParser:
                 
         if sign == "=":
             #Start a new tag
+            self.options["_hsd_equal"] = "1"
             self._starttag(current[0])
             #Set flag
             self.flag_equalsign = True
@@ -215,7 +217,7 @@ class HSDParser:
         self.argument = ""
         tagname = tagname.strip()
         #Call event handler
-        self.start_handler(tagname.strip(),self.options)
+        self.start_handler(tagname, self.options)
         if len(self.options) > 0:
             self.options = {}
         self.current_tags.append(tagname)
@@ -262,6 +264,8 @@ class HSDParser:
                               True, False ])
             
             
+            
+            
 def find_first_occurence(current, signs, check_signs):
     """Finds the first occurance of given symbols."""
     pos = []
@@ -282,8 +286,4 @@ def find_first_occurence(current, signs, check_signs):
 
 
 if __name__ == "__main__":
-        
-    fp = open("dftb_pin.hsd", "r")
-    parser = HSDParser()
-    parser.feed(fp)
-    fp.close()
+    pass
