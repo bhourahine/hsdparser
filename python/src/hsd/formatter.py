@@ -2,6 +2,8 @@
 """
 import sys
 
+__all__ = [ "HSDFormatter", "HSDFeedFormatter" ]
+
 
 class HSDFormatter:
     """Event controlled formatter producing HSD output."""
