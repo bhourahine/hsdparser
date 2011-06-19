@@ -17,9 +17,7 @@ class HSDParser:
         """Intializes a HSDParser instance.
         """
         self._defattrib = defattrib
-        self._signs = ["=", "{", "}", ";", "#", "[", "]", "'", '"', ","]
-        self._checksigns = [ True, True, True, True, True, True, True, True,
-                            True, False ]
+        self._checkstr = "={};#[]'\"" 
         self._currenttags = []
         self._currenttags_flags = []
         self._brackets = 0
@@ -100,8 +98,7 @@ class HSDParser:
         raise HSDParserError("Parsing error (%d)" % error_code)        
                     
     def _parse(self, current):
-        sign, current = find_first_occurrence(current, self._signs,
-                                              self._checksigns)
+        sign, current = find_first_occurrence(current, self._checkstr)
         if self._flag_options:
             self._flag_options = False
             if type(current) != str:
@@ -155,41 +152,35 @@ class HSDParser:
         
         elif sign == "[":
             self.buffer = current[0]
-            self._altersigns([ False, False, False, False, False, False, True,
-                              False, False, False ])
+            self._checkstr = "]"
             self._parse(current[1])
             
         elif sign == "]":
             self._parseoption(current[0])
-            self._altersigns([ True, True, True, True, True, True, True, True,
-                              True, False ])
+            self._checkstr = "={};#[]'\""
             self._flag_options = True
             self._parse(current[1])
             
         elif sign == "'":
             if self._flag_quote:
-                self._altersigns([ True, True, True, True, True, True, True,
-                                  True, True, False ])
+                self._checkstr = "={};#[]'\""
                 self._flag_quote = False
                 self._quote += current[0]
                 self._parse(current[1])
             else:
-                self._altersigns([ False, False, False, False, False, False,
-                                  False, True, False, False ])
+                self._checkstr = "'"
                 self._flag_quote = True
                 self._parse(current[1])
                 
         elif sign == '"':
             if self._flag_quote:
-                self._altersigns([ True, True, True, True, True, True, True,
-                                  True, True, False ])
+                self._checkstr = "={};#[]'\""
                 self._flag_quote = False
                 self._quote += current[0]
                 self._parse(current[1])
                 
             else:
-                self._altersigns([ False, False, False, False, False, False, 
-                                  False, False, True, False ])
+                self._checkstr = '"'
                 self._flag_quote = True
                 self._parse(current[1])
                 
@@ -204,10 +195,6 @@ class HSDParser:
             if self._flag_quote:
                 self._quote += current
 
-    def _altersigns(self, new_values):
-        for jj in range(len(new_values)):
-            self._checksigns[jj] = new_values[jj]
-            
     def _text(self, text):
         if self._quote != "":
             #Call event handler
@@ -250,10 +237,8 @@ class HSDParser:
             self.error_handler(3)
                         
     def _parseoption(self, option):
-        self._altersigns([ True, False, False, False, False, False, False,
-                          False, False, True ])
-        sign, current = find_first_occurrence(option,
-                                              self._signs, self._checksigns)
+        self._checkstr = "=,"
+        sign, current = find_first_occurrence(option, self._checkstr)
         if sign == "=":
             self._key = current[0]
             self._parseoption(current[1])
@@ -266,21 +251,29 @@ class HSDParser:
                 self._options[self._key] = current
             else:
                 self._options[self._defattrib] = current
-            self._altersigns([ True, True, True, True, True, True, True, True,
-                              True, False ])            
+            self._checkstr = "={};#[]'\""
             
             
-def find_first_occurrence(current, signs, check_signs):
-    """Finds the first occurrence of given symbols."""
-    pos = [ current.find(signs[aa]) for aa in range(len(signs))
-           if check_signs[aa] ]
-    pos.append(len(current))
-    minpos = min([ aa for aa in pos if aa != -1 ])
-    if minpos == len(current):
-        return None, current
+def find_first_occurrence(txt, chars):
+    """Finds the first occurrence of given characters in a text.
+    
+    Args:
+        txt: Text to be searched.
+        chars: Chars to look for (specified as a string).
+        
+    Returns:
+        (None, txt) if none of the characters was found in text or
+        (char, (before, after)), where char is the character which has been
+        found, before is the string before, after is the string after.
+    """
+    for firstpos, char in enumerate(txt):
+        if char in chars:
+            break
     else:
-        return current[minpos], [ current[:minpos], current[minpos+1:] ]
+        return None, txt
+    return txt[firstpos], [ txt[:firstpos], txt[firstpos+1:] ]
 
+            
 
 if __name__ == "__main__":
     from io import StringIO
