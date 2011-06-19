@@ -21,10 +21,10 @@ class HSDParser:
         self._currenttags = []
         self._currenttags_flags = []
         self._brackets = 0
-        self._argument = ""
+        self._argument = []
         self._options = {}
         self._key = ""
-        self._quote = ""
+        self._quote = []
         #Flags
         self._flag_equalsign = False
         self._flag_options = False
@@ -119,7 +119,7 @@ class HSDParser:
             #Start a new tag
             if self._flag_equalsign:
                 self._flag_equalsign = False
-                self._starttag(current[0],True)
+                self._starttag(current[0], True)
             else:
                 self._starttag(current[0])
             #Count bracket
@@ -129,10 +129,12 @@ class HSDParser:
             
         elif sign == "}":
             #Display _text
-            if self._argument != "":
-                self._text(self._argument)
-            elif len(current[0].strip())>0:
-                self._text(current[0])
+            if self._argument:
+                self._text("".join(self._argument).strip())
+            else:
+                stripped = current[0].strip()
+                if stripped:
+                    self._text(stripped)
             #Close tag
             self._closetag()
             #Count bracket
@@ -142,8 +144,9 @@ class HSDParser:
             
         elif sign == ";":
             self._flag_equalsign = False
-            if len(current[0].strip()) > 0:
-                self._text(current[0])
+            stripped = current[0].strip() 
+            if stripped:
+                self._text(stripped)
             self._closetag()
             self._parse(current[1])
             
@@ -165,7 +168,7 @@ class HSDParser:
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote += current[0]
+                self._quote.append(current[0])
                 self._parse(current[1])
             else:
                 self._checkstr = "'"
@@ -176,7 +179,7 @@ class HSDParser:
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote += current[0]
+                self._quote.append(current[0])
                 self._parse(current[1])
                 
             else:
@@ -187,38 +190,37 @@ class HSDParser:
         else:
             if self._flag_equalsign:
                 self._flag_equalsign = False
-                if(len(current.strip())>0) or self._quote != "":
-                    self._text(current)
+                stripped = current.strip()
+                if stripped or self._quote:
+                    self._text(stripped)
                 self._closetag()
-            elif self._brackets != 0:
-                self._argument += current
+            elif self._brackets:
+                self._argument.append(current)
             if self._flag_quote:
-                self._quote += current
+                self._quote.append(current)
 
     def _text(self, text):
-        if self._quote != "":
-            #Call event handler
-            self.text_handler(self._quote)
-            self._quote = ""
+        if self._quote:
+            # Call event handler
+            self.text_handler("".join(self._quote))
+            self._quote = []
         else:
-            text = text.strip()
-            #Call event handler
+            # Call event handler
             self.text_handler(text)
             
     def _starttag(self, tagname, flag_tag=False):
-        #Reset self._argument
-        self._argument = ""
-        tagname = tagname.strip()
-        #Call event handler
-        self.start_handler(tagname, self._options)
-        if len(self._options) > 0:
-            self._options = {}
-        self._currenttags.append(tagname)
+        # Reset self._argument
+        self._argument = []
+        tagname_stripped = tagname.strip()
+        # Call event handler
+        self.start_handler(tagname_stripped, self._options)
+        self._options = {}
+        self._currenttags.append(tagname_stripped)
         self._currenttags_flags.append(flag_tag)
         
     def _closetag(self):
         #Reset self._argument
-        self._argument = ""
+        self._argument = []
         #Call event handler
         self.close_handler(self._currenttags[-1])
         del self._currenttags[-1]
