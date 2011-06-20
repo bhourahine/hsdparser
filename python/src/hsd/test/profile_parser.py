@@ -16,5 +16,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 2:
         sort = sys.argv[2]
     else:
-        sort = 'cumulative'        
+        sort = 'time'        
     cProfile.run('main()', sort=sort) 

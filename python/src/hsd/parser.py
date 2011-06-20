@@ -98,106 +98,104 @@ class HSDParser:
         raise HSDParserError("Parsing error (%d)" % error_code)        
                     
     def _parse(self, current):
-        sign, current = find_first_occurrence(current, self._checkstr)
+        sign, before, after = splitbycharset(current, self._checkstr)
         if self._flag_options:
             self._flag_options = False
-            if type(current) != str:
-                current[0] = self.buffer
-            else:
-                current = self.buffer
-                
-        if sign == "=":
-            #Start a new tag
-            self._options["_hsd_equal"] = "1"
-            self._starttag(current[0])
-            #Set flag
-            self._flag_equalsign = True
-            #Continue parsing
-            self._parse(current[1])
-            
-        elif sign == "{":
-            #Start a new tag
+            before = self.buffer
+    
+        if not sign:
             if self._flag_equalsign:
                 self._flag_equalsign = False
-                self._starttag(current[0], True)
+                stripped = before.strip()
+                if stripped or self._quote:
+                    self._text(stripped)
+                self._closetag()
+            elif self._brackets:
+                self._argument.append(before)
+            if self._flag_quote:
+                self._quote.append(before)
+                            
+        elif sign == "=":
+            # Start a new tag
+            self._options["_hsd_equal"] = "1"
+            self._starttag(before)
+            # Set flag
+            self._flag_equalsign = True
+            # Continue parsing
+            self._parse(after)
+            
+        elif sign == "{":
+            # Start a new tag
+            if self._flag_equalsign:
+                self._flag_equalsign = False
+                self._starttag(before, True)
             else:
-                self._starttag(current[0])
-            #Count bracket
+                self._starttag(before)
+            # Count bracket
             self._brackets += 1
-            #Continue parsing
-            self._parse(current[1])
+            # Continue parsing
+            self._parse(after)
             
         elif sign == "}":
-            #Display _text
+            # Display _text
             if self._argument:
                 self._text("".join(self._argument).strip())
             else:
-                stripped = current[0].strip()
+                stripped = before.strip()
                 if stripped:
                     self._text(stripped)
-            #Close tag
+            # Close tag
             self._closetag()
-            #Count bracket
+            # Count bracket
             self._brackets -= 1
-            #Continue parsing
-            self._parse(current[1])
+            # Continue parsing
+            self._parse(after)
             
         elif sign == ";":
             self._flag_equalsign = False
-            stripped = current[0].strip() 
+            stripped = before.strip() 
             if stripped:
                 self._text(stripped)
             self._closetag()
-            self._parse(current[1])
+            self._parse(after)
             
         elif sign == "#":
             pass
         
         elif sign == "[":
-            self.buffer = current[0]
+            self.buffer = before
             self._checkstr = "]"
-            self._parse(current[1])
+            self._parse(after)
             
         elif sign == "]":
-            self._parseoption(current[0])
+            self._parseoption(before)
             self._checkstr = "={};#[]'\""
             self._flag_options = True
-            self._parse(current[1])
+            self._parse(after)
             
         elif sign == "'":
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote.append(current[0])
-                self._parse(current[1])
+                self._quote.append(before)
+                self._parse(after)
             else:
                 self._checkstr = "'"
                 self._flag_quote = True
-                self._parse(current[1])
+                self._parse(after)
                 
         elif sign == '"':
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote.append(current[0])
-                self._parse(current[1])
+                self._quote.append(before)
+                self._parse(after)
                 
             else:
                 self._checkstr = '"'
                 self._flag_quote = True
-                self._parse(current[1])
-                
-        else:
-            if self._flag_equalsign:
-                self._flag_equalsign = False
-                stripped = current.strip()
-                if stripped or self._quote:
-                    self._text(stripped)
-                self._closetag()
-            elif self._brackets:
-                self._argument.append(current)
-            if self._flag_quote:
-                self._quote.append(current)
+                self._parse(after)
+                            
 
     def _text(self, text):
         if self._quote:
@@ -219,9 +217,9 @@ class HSDParser:
         self._currenttags_flags.append(flag_tag)
         
     def _closetag(self):
-        #Reset self._argument
+        # Reset self._argument
         self._argument = []
-        #Call event handler
+        # Call event handler
         self.close_handler(self._currenttags[-1])
         del self._currenttags[-1]
         if self._currenttags_flags[-1]:
@@ -240,43 +238,44 @@ class HSDParser:
                         
     def _parseoption(self, option):
         self._checkstr = "=,"
-        sign, current = find_first_occurrence(option, self._checkstr)
-        if sign == "=":
-            self._key = current[0]
-            self._parseoption(current[1])
-        elif sign == ",":
-            self._options[self._key] = current[0]
-            self._key = ""
-            self._parseoption(current[1])
-        else:
-            if self._key != "":
-                self._options[self._key] = current
+        sign, before, after = splitbycharset(option, self._checkstr)
+        if not sign:
+            if self._key:
+                self._options[self._key] = before
             else:
-                self._options[self._defattrib] = current
-            self._checkstr = "={};#[]'\""
+                self._options[self._defattrib] = before
+            self._checkstr = "={};#[]'\""  
+        elif sign == "=":
+            self._key = before
+            self._parseoption(after)
+        elif sign == ",":
+            self._options[self._key] = before
+            self._key = ""
+            self._parseoption(after)
             
             
-def find_first_occurrence(txt, chars):
-    """Finds the first occurrence of given characters in a text.
+def splitbycharset(txt, charset):
+    """Splits a string at the first occurrence of a character in a set.
     
     Args:
-        txt: Text to be searched.
-        chars: Chars to look for (specified as a string).
+        txt: Text to split.
+        chars: Chars to look for (specified as string).
         
     Returns:
-        (None, txt) if none of the characters was found in text or
-        (char, (before, after)), where char is the character which has been
-        found, before is the string before, after is the string after.
+        (char, before, after) where char is the character from the character
+        set which has been found as first; before and after are the substrings
+        before and after it. If none of the characters had been found in the
+        text, char and after are set to the empty string and before to the 
+        entrire string.
     """
     for firstpos, char in enumerate(txt):
-        if char in chars:
+        if char in charset:
             break
     else:
-        return None, txt
-    return txt[firstpos], [ txt[:firstpos], txt[firstpos+1:] ]
+        return '',  txt, '' 
+    return txt[firstpos], txt[:firstpos], txt[firstpos+1:]
 
             
-
 if __name__ == "__main__":
     from io import StringIO
     from hsd.formatter import HSDStreamFormatter, HSDFormatter
