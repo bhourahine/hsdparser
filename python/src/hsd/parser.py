@@ -5,6 +5,8 @@ __all__ = [ "HSDParserError", "HSDParser"]
 class HSDParserError(HSDException):
     pass
 
+class HSDStopParser(HSDException):
+    pass
 
 class HSDParser:
     """Event based parser for the Human-readable Structred data format.
@@ -196,7 +198,6 @@ class HSDParser:
                 self._flag_quote = True
                 self._parse(after)
                             
-
     def _text(self, text):
         if self._quote:
             # Call event handler
@@ -229,7 +230,7 @@ class HSDParser:
             del self._currenttags_flags[-1]
             
     def _error(self):
-        if len(self._currenttags) != 0:
+        if self._currenttags:
             self.error_handler(1)
         elif self._flag_quote:
             self.error_handler(2)

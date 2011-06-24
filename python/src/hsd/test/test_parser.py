@@ -66,7 +66,7 @@ class DefaultAttribTestCase(ParserTestCase):
     
     
 class ExpAttribTestCase(ParserTestCase):
-    hsdtests = hsdtests.hsdtests_expattr
+    _tests = hsdtests.hsdtests_expattr
 
 
 def getsuites():
