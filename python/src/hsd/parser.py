@@ -27,6 +27,7 @@ class HSDParser:
         self._options = {}
         self._key = ""
         self._quote = []
+        self._curr_line = 0
         #Flags
         self._flag_equalsign = False
         self._flag_options = False
@@ -45,6 +46,7 @@ class HSDParser:
             fp = fileobj
         for line in fp.readlines():
             self._parse(line)
+            self._curr_line += 1
         if isfilename:
             fp.close()
         self._error()
@@ -85,7 +87,7 @@ class HSDParser:
         """
         pass
         
-    def error_handler(self, error_code):
+    def error_handler(self, error_code, error_line=(-1,-1)):
         """Handler which is called if an error was detected during parsing.
         
         The default implementation throws a HSDException or a descendant of it.
@@ -96,6 +98,7 @@ class HSDParser:
                 1: Tag-Error
                 2: Quotation-Error
                 3: Bracket-Error
+            error_line: Lines between the error occurred. Default is (-1,-1)
         """
         raise HSDParserError("Parsing error (%d)" % error_code)        
                     
@@ -112,8 +115,11 @@ class HSDParser:
                 if stripped or self._quote:
                     self._text(stripped)
                 self._closetag()
+            #elif self._flag_quote:
+            #    self._flag_quote.append(before)
             elif self._brackets:
-                self._argument.append(before)
+                if before.strip():
+                    self._argument.append(before)
             if self._flag_quote:
                 self._quote.append(before)
                             
@@ -144,7 +150,7 @@ class HSDParser:
                 self._text("".join(self._argument).strip())
             else:
                 stripped = before.strip()
-                if stripped:
+                if stripped or self._quote:
                     self._text(stripped)
             # Close tag
             self._closetag()
@@ -214,14 +220,16 @@ class HSDParser:
         # Call event handler
         self.start_handler(tagname_stripped, self._options)
         self._options = {}
-        self._currenttags.append(tagname_stripped)
+        self._currenttags.append((tagname_stripped,self._curr_line))
         self._currenttags_flags.append(flag_tag)
         
     def _closetag(self):
+        if not self._currenttags:
+            self.error_handler(1, (0,self._curr_line))
         # Reset self._argument
         self._argument = []
         # Call event handler
-        self.close_handler(self._currenttags[-1])
+        self.close_handler(self._currenttags[-1][0])
         del self._currenttags[-1]
         if self._currenttags_flags[-1]:
             del self._currenttags_flags[-1]
@@ -231,7 +239,8 @@ class HSDParser:
             
     def _error(self):
         if self._currenttags:
-            self.error_handler(1)
+            for ii in self._currenttags:
+                self.error_handler(1,(self._currenttags[1],self._curr_line))
         elif self._flag_quote:
             self.error_handler(2)
         elif self._brackets != 0:
@@ -243,6 +252,7 @@ class HSDParser:
         if not sign:
             if self._key:
                 self._options[self._key] = before
+                self._key = ""
             else:
                 self._options[self._defattrib] = before
             self._checkstr = "={};#[]'\""  
@@ -323,5 +333,5 @@ Options {
   RandomSeed = 0
   WriteHS = No
 }""")
-    streamformatter.feed(stream)
+streamformatter.feed(stream)
     
