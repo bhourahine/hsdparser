@@ -49,8 +49,8 @@ hsdtests_defattr = [
     ([ "temperature [kelvin] = 300" ],
      [ (OPEN, "temperature", {"unit": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),      
-    #([ "test [unit=Kelvin \n dimension=3] {}" ],
-    # [ (OPEN, "test", {"unit": "Kelvin","dimension":3}), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin \n dimension=3] {}" ],
+     [ (OPEN, "test", {"unit": "Kelvin","dimension":3}), (CLOSE, "test") ]),
     ]
 
 # Explicit attributes
