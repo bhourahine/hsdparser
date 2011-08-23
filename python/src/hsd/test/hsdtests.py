@@ -16,7 +16,7 @@ ERROR = 4
 # Input without options.
 hsdtests_simple = [
     # Tag without value
-    ([ "test {}", "test{}", "test { }"  ],  # "test{\n}", "test {\n\n }"
+    ([ "test {}", "test{}", "test { }",  "test{\n}",  "test {\n\n }" ],
      [ (OPEN, "test", {}), (CLOSE, "test") ]),     
     # Tag with bracketed value 
     ([ "test {\n12\n}", "test{12}", "test{\n12}" ],
@@ -58,8 +58,8 @@ hsdtests_expattr = [
     # Tag with explicit option 
     ([ "test [option=value] {}" ],
      [ (OPEN, "test", {"option": "value"}), (CLOSE, "test") ]),
-    ## Two tags with options
-    ([ "test [option=value] {}\n temperature [kelvin] = 300" ],
+    # Two tags with options
+    ([ "test [option=value] {}\ntemperature [kelvin] = 300" ],
      [ (OPEN, "test", {"option": "value",}), (CLOSE, "test"),
        (OPEN, "temperature", {"default": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),

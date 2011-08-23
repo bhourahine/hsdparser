@@ -58,7 +58,11 @@ class DefaultAttribTestCase(FormatterTestCase):
     
     
 class ExpAttribTestCase(FormatterTestCase):
+
     _tests = hsdtests.hsdtests_expattr
+
+    def _launch_formatter(self, stream):
+        return HSDFormatter(target=stream, defattrib="default")
 
 
 def getsuites():

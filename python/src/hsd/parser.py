@@ -333,5 +333,5 @@ Options {
   RandomSeed = 0
   WriteHS = No
 }""")
-streamformatter.feed(stream)
+    streamformatter.feed(stream)
     
