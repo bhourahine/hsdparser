@@ -2,7 +2,7 @@
 """
 import sys
 
-__all__ = [ "HSDFormatter", "HSDFeedFormatter" ]
+__all__ = [ "HSDFormatter", "HSDStreamFormatter" ]
 
 
 class HSDFormatter:

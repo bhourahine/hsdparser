@@ -102,9 +102,9 @@ class HSDParser:
                 3: Bracket-Error
             error_line: Lines between the error occurred. Default is (-1,-1)
         """
-        error_msg = "Parsing error (%d)" % error_code
-        error_msg += " in lines " + error_line[0] + "-" + error_line[1]
-        raise HSDParserError(error_msg)        
+        error_msg = "Parsing error ({}) between lines {} - {}.".format(
+            error_code, error_line[0] + 1, error_line[1] + 1)
+        raise HSDParserError(error_msg)
                     
     def _parse(self, current):
         sign, before, after = splitbycharset(current, self._checkstr)
@@ -249,8 +249,7 @@ class HSDParser:
             
     def _error(self):
         if self._currenttags:
-            for ii in self._currenttags:
-                self.error_handler(1,(self._currenttags[1],self._curr_line))
+            self.error_handler(1, (self._currenttags[-1][1], self._curr_line))
         elif self._flag_quote:
             self.error_handler(2)
         elif self._brackets != 0:
