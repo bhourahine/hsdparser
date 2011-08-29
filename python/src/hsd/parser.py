@@ -186,6 +186,7 @@ class HSDParser:
             self._flag_options_text = False
             self._option_text.append(before.strip())
             self._parseoption("".join(self._option_text))
+            self._option_text = []
             self._checkstr = "={};#[]'\""
             self._flag_options = True
             self._parse(after)
@@ -260,6 +261,7 @@ class HSDParser:
         sign, before, after = splitbycharset(option, self._checkstr)
         if not sign:
             if self._key:
+                self._key = self._key.strip()
                 self._options[self._key] = before
                 self._key = ""
             else:
@@ -269,6 +271,7 @@ class HSDParser:
             self._key = before
             self._parseoption(after)
         elif sign == ",":
+            self._key = self._key.strip()
             self._options[self._key] = before
             self._key = ""
             self._parseoption(after)

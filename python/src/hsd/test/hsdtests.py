@@ -49,8 +49,12 @@ hsdtests_defattr = [
     ([ "temperature [kelvin] = 300" ],
      [ (OPEN, "temperature", {"unit": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),      
-    ([ "test [unit=Kelvin \n dimension=3] {}" ],
-     [ (OPEN, "test", {"unit": "Kelvin","dimension":3}), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin, dimension=3] {}", "test [unit=Kelvin, \n dimension=3] {}" ],
+     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin, dimension=3] {}" ],
+     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin, dimension=3] {\n}" ],
+     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
     ]
 
 # Explicit attributes
@@ -59,7 +63,7 @@ hsdtests_expattr = [
     ([ "test [option=value] {}" ],
      [ (OPEN, "test", {"option": "value"}), (CLOSE, "test") ]),
     ## Two tags with options
-    ([ "test [option=value] {}\n temperature [kelvin] = 300" ],
+    ([ "test [option=value] {}\ntemperature [kelvin] = 300" ],
      [ (OPEN, "test", {"option": "value",}), (CLOSE, "test"),
        (OPEN, "temperature", {"default": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),
