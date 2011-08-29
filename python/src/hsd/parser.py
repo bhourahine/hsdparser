@@ -28,9 +28,11 @@ class HSDParser:
         self._key = ""
         self._quote = []
         self._curr_line = 0
+        self._option_text = []
         #Flags
         self._flag_equalsign = False
         self._flag_options = False
+        self._flag_options_text = False
         self._flag_quote = False
         
     def feed(self, fileobj):
@@ -94,13 +96,15 @@ class HSDParser:
         
         Args:
             error_code: Code for signalizing the type of the error. Currently
-                following codes are implemented:
+                implemented codes are:
                 1: Tag-Error
                 2: Quotation-Error
                 3: Bracket-Error
             error_line: Lines between the error occurred. Default is (-1,-1)
         """
-        raise HSDParserError("Parsing error (%d)" % error_code)        
+        error_msg = "Parsing error (%d)" % error_code
+        error_msg += " in lines " + error_line[0] + "-" + error_line[1]
+        raise HSDParserError(error_msg)        
                     
     def _parse(self, current):
         sign, before, after = splitbycharset(current, self._checkstr)
@@ -122,6 +126,8 @@ class HSDParser:
                     self._argument.append(before)
             if self._flag_quote:
                 self._quote.append(before)
+            if self._flag_options_text:
+                self._option_text.append(before.strip())
                             
         elif sign == "=":
             # Start a new tag
@@ -171,12 +177,16 @@ class HSDParser:
             pass
         
         elif sign == "[":
+            self._flag_options_text = True
             self.buffer = before
             self._checkstr = "]"
             self._parse(after)
             
         elif sign == "]":
-            self._parseoption(before)
+            self._flag_options_text = False
+            self._option_text.append(before.strip())
+            self._parseoption("".join(self._option_text))
+            self._option_text = []
             self._checkstr = "={};#[]'\""
             self._flag_options = True
             self._parse(after)
@@ -251,6 +261,7 @@ class HSDParser:
         sign, before, after = splitbycharset(option, self._checkstr)
         if not sign:
             if self._key:
+                self._key = self._key.strip()
                 self._options[self._key] = before
                 self._key = ""
             else:
@@ -260,6 +271,7 @@ class HSDParser:
             self._key = before
             self._parseoption(after)
         elif sign == ",":
+            self._key = self._key.strip()
             self._options[self._key] = before
             self._key = ""
             self._parseoption(after)
@@ -303,7 +315,8 @@ Ga As
 0.00000000000E+00   0.27135460000E+01   0.27135460000E+01
 0.27135460000E+01   0.00000000000E+00   0.27135460000E+01
 }
-
+Test[unit=1,
+    dim=3]{}
 Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1.0E-007

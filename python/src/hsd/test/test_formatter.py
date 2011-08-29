@@ -28,7 +28,7 @@ class FormatterTestCase(unittest.TestCase):
     
     def _launch_formatter(self, stream):
         """Launches HSD formatters with given output stream for the tests."""
-        return HSDFormatter(target=stream)
+        return HSDFormatter(target=stream, defattrib="default")
                 
     def testTags(self):
         """Produces formatted outputs and testing against reference."""
