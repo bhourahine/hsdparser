@@ -1,4 +1,4 @@
-#from collections import OrderedDict
+import hsd.parser as hsdparser
 
 # Action flags
 OPEN = 1
@@ -35,6 +35,10 @@ hsdtests_simple = [
   Ga As
   1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00"""),
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
+    # Equal with quotatin over many lines
+    ([ 'test = "\nhello\n"' ],
+     [ (OPEN, "test", {"_hsd_equal": 1}), (TEXT, '"\nhello\n"'),
+      (CLOSE, "test")]),
     ]
 
 # Input with default attributes
@@ -67,4 +71,15 @@ hsdtests_expattr = [
      [ (OPEN, "test", {"option": "value",}), (CLOSE, "test"),
        (OPEN, "temperature", {"default": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),
+    ]
+
+# Testing on error
+hsdtests_error = [
+    # Unparsed text in braces
+    #([ "Option {\n123\nKeyword = Value}" ],
+    # [ (OPEN, "Option", {}), (ERROR, hsdparser.SYNTAX_ERROR) ]),
+    ([ "123 Option {}"],
+     [ (ERROR, hsdparser.SYNTAX_ERROR)]),
+    ([ "123 Option = 12"],
+     [ (ERROR, hsdparser.SYNTAX_ERROR)]),
     ]
