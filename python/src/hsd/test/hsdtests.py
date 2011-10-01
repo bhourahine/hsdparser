@@ -1,4 +1,4 @@
-#from collections import OrderedDict
+from collections import OrderedDict
 
 # Action flags
 OPEN = 1
@@ -16,7 +16,7 @@ ERROR = 4
 # Input without options.
 hsdtests_simple = [
     # Tag without value
-    ([ "test {}", "test{}", "test { }",  "test{\n}",  "test {\n\n }" ],
+    ([ "test {}", "test{}", "test { }"  ],  # "test{\n}", "test {\n\n }"
      [ (OPEN, "test", {}), (CLOSE, "test") ]),     
     # Tag with bracketed value 
     ([ "test {\n12\n}", "test{12}", "test{\n12}" ],
@@ -37,9 +37,10 @@ hsdtests_simple = [
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
     ]
 
+
 # Input with default attributes
 hsdtests_defattr = [
-    # Tag with default option
+     # Tag with default option
     ([ "test [value] {}" ],
      [ (OPEN, "test", {"unit": "value"}), (CLOSE, "test") ]),     
     # Tag with default option and value
@@ -49,12 +50,12 @@ hsdtests_defattr = [
     ([ "temperature [kelvin] = 300" ],
      [ (OPEN, "temperature", {"unit": "kelvin", "_hsd_equal": "1"}),
        (TEXT, "300"), (CLOSE, "temperature")]),      
-    ([ "test [unit=Kelvin, dimension=3] {}", "test [unit=Kelvin, \n dimension=3] {}" ],
-     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
-    ([ "test [unit=Kelvin, dimension=3] {}" ],
-     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
-    ([ "test [unit=Kelvin, dimension=3] {\n}" ],
-     [ (OPEN, "test", {"unit": "Kelvin","dimension":"3"}), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin,dimension=3] {}", "test [unit=Kelvin, \n dimension=3] {}" ],
+     [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")])), (CLOSE, "test") ]),
+    ([ "test [unit=Kelvin,dimension=3] {}" ],
+     [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")])), (CLOSE, "test") ]),
+     ([ "test [unit=Kelvin,dimension=3] {}" ],
+     [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")])), (CLOSE, "test") ]),
     ]
 
 # Explicit attributes
@@ -62,7 +63,7 @@ hsdtests_expattr = [
     # Tag with explicit option 
     ([ "test [option=value] {}" ],
      [ (OPEN, "test", {"option": "value"}), (CLOSE, "test") ]),
-    # Two tags with options
+     # Two tags with options
     ([ "test [option=value] {}\ntemperature [kelvin] = 300" ],
      [ (OPEN, "test", {"option": "value",}), (CLOSE, "test"),
        (OPEN, "temperature", {"default": "kelvin", "_hsd_equal": "1"}),

@@ -1,4 +1,6 @@
 from hsd.common import HSDException
+from collections import OrderedDict
+
 
 __all__ = [ "HSDParserError", "HSDParser"]
 
@@ -24,7 +26,7 @@ class HSDParser:
         self._currenttags_flags = []
         self._brackets = 0
         self._argument = []
-        self._options = {}
+        self._options = OrderedDict()
         self._key = ""
         self._quote = []
         self._curr_line = 0
@@ -227,9 +229,10 @@ class HSDParser:
         # Reset self._argument
         self._argument = []
         tagname_stripped = tagname.strip()
+        print(self._options)
         # Call event handler
         self.start_handler(tagname_stripped, self._options)
-        self._options = {}
+        self._options = OrderedDict()
         self._currenttags.append((tagname_stripped,self._curr_line))
         self._currenttags_flags.append(flag_tag)
         
