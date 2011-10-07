@@ -36,9 +36,16 @@ hsdtests_simple = [
   1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00"""),
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
     # Equal with quotatin over many lines
-    ([ 'test = "\nhello\n"' ],
-     [ (OPEN, "test", {"_hsd_equal": 1}), (TEXT, '"\nhello\n"'),
-      (CLOSE, "test")]),
+    #([ 'test = "\nhello\n"' ],
+    # [ (OPEN, "test", {"_hsd_equal": 1}), (TEXT, '"\nhello\n"'),
+    #  (CLOSE, "test")]),
+    # Remark with after tag name
+    ([ 'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
+     [ (OPEN, "tag1", {}), 
+       (OPEN, "tag2", {"_hsd_equal": 1}), (TEXT, "value2"), (CLOSE, "tag2"),
+       (OPEN, "tag3", {"_hsd_equal": 1}), (TEXT, "value3"), (CLOSE, "tag3"),
+       (CLOSE, "tag1")]
+     )
     ]
 
 # Input with default attributes
