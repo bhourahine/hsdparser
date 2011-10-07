@@ -25,7 +25,7 @@ class ParserTestCase(unittest.TestCase):
     def _text_handler(self, txt):
         self._result.append((hsdtests.TEXT, txt))
         
-    def _error_handler(self, errorcode):
+    def _error_handler(self, errorcode, errorpos):
         self._result.append((hsdtests.ERROR, errorcode))
         
     def _launch_parser(self):
@@ -67,6 +67,9 @@ class DefaultAttribTestCase(ParserTestCase):
     
 class ExpAttribTestCase(ParserTestCase):
     _tests = hsdtests.hsdtests_expattr
+    
+class ErrorTestCase(ParserTestCase):
+    _tests = hsdtests.hsdtests_error
 
 
 def getsuites():
@@ -74,8 +77,8 @@ def getsuites():
     return [ unittest.makeSuite(SimpleTestCase, 'test'),
             unittest.makeSuite(DefaultAttribTestCase, 'test'),
             unittest.makeSuite(ExpAttribTestCase, 'test'),
+            unittest.makeSuite(ErrorTestCase, 'test')
             ]
-
 
 if __name__ == "__main__": 
     runner = unittest.TextTestRunner()

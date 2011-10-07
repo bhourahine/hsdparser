@@ -2,7 +2,13 @@ from hsd.common import HSDException
 from collections import OrderedDict
 
 
-__all__ = [ "HSDParserError", "HSDParser"]
+__all__ = [ "HSDParserError", "HSDParser",
+           "SYNTAX_ERROR", "TAG_ERROR", "QUOTATION_ERROR", "BRACKET_ERROR" ]
+
+SYNTAX_ERROR = 1
+TAG_ERROR = 2
+QUOTATION_ERROR = 3
+BRACKET_ERROR = 4
 
 class HSDParserError(HSDException):
     pass
@@ -99,9 +105,9 @@ class HSDParser:
         Args:
             error_code: Code for signalizing the type of the error. Currently
                 implemented codes are:
-                1: Tag-Error
-                2: Quotation-Error
-                3: Bracket-Error
+                    TAG_ERROR: Tag-Error
+                    QUOTATION_ERROR: Quotation-Error
+                    BRACKET_ERROR: Bracket-Error
             error_line: Lines between the error occurred. Default is (-1,-1)
         """
         error_msg = "Parsing error ({}) between lines {} - {}.".format(
@@ -252,11 +258,12 @@ class HSDParser:
             
     def _error(self):
         if self._currenttags:
-            self.error_handler(1, (self._currenttags[-1][1], self._curr_line))
+            self.error_handler(TAG_ERROR,
+                               (self._currenttags[-1][1], self._curr_line))
         elif self._flag_quote:
-            self.error_handler(2)
+            self.error_handler(QUOTATION_ERROR)
         elif self._brackets != 0:
-            self.error_handler(3)
+            self.error_handler(BRACKET_ERROR)
                         
     def _parseoption(self, option):
         self._checkstr = "=,"
