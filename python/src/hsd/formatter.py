@@ -33,7 +33,6 @@ class HSDFormatter:
         self._last2 = self._last = 0
 
     def start_tag(self, tagname, options):
-        print(options, "*")
         """Starts a HSD tag.
         
         Args:

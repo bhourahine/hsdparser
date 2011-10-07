@@ -41,7 +41,8 @@ hsdtests_simple = [
     # [ (OPEN, "test", {"_hsd_equal": 1}), (TEXT, '"\nhello\n"'),
     #  (CLOSE, "test")]),
     # Remark with after tag name
-    ([ 'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
+    ([ 'tag1 {\n  tag2 = value2\n  tag3 = value3\n}', 
+       'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
      [ (OPEN, "tag1", {}),
        (OPEN, "tag2", {"_hsd_equal": 1}), (TEXT, "value2"), (CLOSE, "tag2"),
        (OPEN, "tag3", {"_hsd_equal": 1}), (TEXT, "value3"), (CLOSE, "tag3"),

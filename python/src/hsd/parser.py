@@ -235,7 +235,6 @@ class HSDParser:
         # Reset self._argument
         self._argument = []
         tagname_stripped = tagname.strip()
-        print(self._options)
         # Call event handler
         self.start_handler(tagname_stripped, self._options)
         self._options = OrderedDict()
