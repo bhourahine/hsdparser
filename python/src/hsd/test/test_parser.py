@@ -16,8 +16,8 @@ class ParserTestCase(unittest.TestCase):
     """
     _tests = []
     
-    def _start_handler(self, tagname, options):
-        self._result.append((hsdtests.OPEN, tagname, options))
+    def _start_handler(self, tagname, options, hsdoptions):
+        self._result.append((hsdtests.OPEN, tagname, options, hsdoptions))
         
     def _close_handler(self, tagname):
         self._result.append((hsdtests.CLOSE, tagname))

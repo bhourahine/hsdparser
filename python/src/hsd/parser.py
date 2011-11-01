@@ -33,6 +33,7 @@ class HSDParser:
         self._brackets = 0
         self._argument = []
         self._options = OrderedDict()
+        self._hsdoptions = OrderedDict()
         self._key = ""
         self._quote = []
         self._curr_line = 0
@@ -61,7 +62,7 @@ class HSDParser:
             fp.close()
         self._error()
         
-    def start_handler(self, tagname, options):
+    def start_handler(self, tagname, options, hsdoptions):
         """Handler which is called when a tag is opened.
         
         The default implementation is to print the tag name and the attributes.
@@ -70,7 +71,9 @@ class HSDParser:
         
         Args:
             tagname: Name of the tag which had been opened.
-            options: Dictionary of the options (attributes) of the tag. 
+            options: Dictionary of the options (attributes) of the tag.
+            hsdoptions: Dictionary of the options created during the processing
+                in the hsd-parser. 
         """
         pass
     
@@ -139,7 +142,7 @@ class HSDParser:
                             
         elif sign == "=":
             # Start a new tag
-            self._options["_hsd_equal"] = "1"
+            self._hsdoptions["_hsd_equal"] = True
             self._starttag(before)
             # Set flag
             self._flag_equalsign = True
@@ -236,8 +239,9 @@ class HSDParser:
         self._argument = []
         tagname_stripped = tagname.strip()
         # Call event handler
-        self.start_handler(tagname_stripped, self._options)
+        self.start_handler(tagname_stripped, self._options, self._hsdoptions)
         self._options = OrderedDict()
+        self._hsdoptions = OrderedDict()
         self._currenttags.append((tagname_stripped,self._curr_line))
         self._currenttags_flags.append(flag_tag)
         

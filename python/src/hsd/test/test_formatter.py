@@ -19,7 +19,8 @@ class FormatterTestCase(unittest.TestCase):
         formatter = self._launch_formatter(stream)
         for commandtuple in commands:
             if commandtuple[0] == hsdtests.OPEN:
-                formatter.start_tag(commandtuple[1], commandtuple[2])
+                formatter.start_tag(commandtuple[1], commandtuple[2],
+                                    commandtuple[3])
             elif commandtuple[0] == hsdtests.TEXT:
                 formatter.text(commandtuple[1])
             else:

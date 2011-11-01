@@ -32,14 +32,14 @@ class HSDFormatter:
         self._equalsigns = [ False, ]
         self._last2 = self._last = 0
 
-    def start_tag(self, tagname, options):
+    def start_tag(self, tagname, options, hsdoptions):
         """Starts a HSD tag.
         
         Args:
             tagname: Name of the tag to be started.
             options: Dictionary of the tag options.
         """
-        equalsign = options.pop("_hsd_equal", False)   # opens with equal sign?
+        equalsign = hsdoptions.get("_hsd_equal", False)   # opens with equal?
         if options:
             if (self._defattrib and len(options) == 1 
                 and self._defattrib in options):

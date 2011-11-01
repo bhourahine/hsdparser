@@ -1,5 +1,5 @@
 import hsd.parser as hsdparser
-import xml.etree.ElementTree as etree
+import hsd.tree as hsdtree
     
 class HsdTreeBuilder:
     
@@ -9,13 +9,13 @@ class HsdTreeBuilder:
         else:
             self.parser = hsdparser.HSDParser()
         self.roottag = roottag
-        self.target = etree.TreeBuilder()
+        self.target = hsdtree.TreeBuilder()
         self.parser.start_handler = self.start
         self.parser.close_handler = self.close
         self.parser.text_handler = self.data
         
-    def start(self, tagname, options):
-        return self.target.start(tagname,options)
+    def start(self, tagname, options, hsdoptions):
+        return self.target.start(tagname, options, hsdoptions)
     
     def data(self, text):
         return self.target.data(text)
@@ -24,7 +24,7 @@ class HsdTreeBuilder:
         return self.target.end(tagname)
     
     def build(self, fileobj):
-        self.target.start(self.roottag, {})
+        self.target.start(self.roottag, {}, {})
         self.parser.feed(fileobj)
         self.target.end(self.roottag)
         return self.target.close()
@@ -75,5 +75,5 @@ Options {
   WriteHS = No
 }""")
     tree = newBuilder.build(stream)
-    newTree = etree.ElementTree(tree)
+    newTree = hsdtree.ElementTree(tree)
     newTree.write(sys.stdout)
