@@ -1,4 +1,34 @@
-import xml.etree.ElementTree as etree 
+import xml.etree.ElementTree as etree
+from hsd.formatter import HSDFormatter
+
+class HSDTree(etree.ElementTree):
+    """Wrapper around an entire tree."""  
+
+    def writehsd(self, stream, formatter=None):
+        """Writes the tree in HSD format.
+        
+        Args:
+            stream: File like object or file name, where the tree should be
+                written.
+            formatter: Optional formatter object. (default: HSDFormatter())
+        """
+        if formatter is None:
+            formatter = HSDFormatter()
+        if not hasattr(stream, "write"):
+            stream = open(stream, "w")
+        self._writehsd(self.getroot(), formatter)
+        
+    def _writehsd(self, parent, formatter):
+        """Private helper routine for writehsd."""
+        if parent.text:
+            formatter.text(parent.text)
+        else:
+            for child in parent:
+                formatter.start_tag(child.tag, child.attrib,
+                                         child.hsdattrib)
+                self._writehsd(child, formatter)
+                formatter.close_tag(child.tag)
+        
 
 class _ElementInterface(etree._ElementInterface):
     """Element Interface containing extra dictionary with hsd attributes."""
@@ -48,6 +78,3 @@ class TreeBuilder(etree.TreeBuilder):
         elem = etree.TreeBuilder.start(self, tag, attrs)
         elem.sethsdattribs(hsdattrs)
         return elem
-
-# Remapping ElementTree
-ElementTree = etree.ElementTree

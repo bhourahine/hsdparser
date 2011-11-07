@@ -2,6 +2,7 @@
 """
 import sys
 from collections import OrderedDict
+from hsd.common import HSDATTR_EQUAL
 
 __all__ = [ "HSDFormatter", "HSDStreamFormatter" ]
 
@@ -39,7 +40,7 @@ class HSDFormatter:
             tagname: Name of the tag to be started.
             options: Dictionary of the tag options.
         """
-        equalsign = hsdoptions.get("_hsd_equal", False)   # opens with equal?
+        equalsign = hsdoptions.get(HSDATTR_EQUAL, False)   # opens with equal?
         if options:
             if (self._defattrib and len(options) == 1 
                 and self._defattrib in options):
@@ -129,7 +130,7 @@ class HSDStreamFormatter:
             fileobj: File with HSD-content.
         """
         self._parser.feed(fileobj)
-
+        
 
 if __name__ == "__main__":     
     import io

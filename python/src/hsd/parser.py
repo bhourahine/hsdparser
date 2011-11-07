@@ -1,4 +1,4 @@
-from hsd.common import HSDException
+from hsd.common import HSDException, HSDATTR_EQUAL
 from collections import OrderedDict
 
 
@@ -142,7 +142,7 @@ class HSDParser:
                             
         elif sign == "=":
             # Start a new tag
-            self._hsdoptions["_hsd_equal"] = True
+            self._hsdoptions[HSDATTR_EQUAL] = True
             self._starttag(before)
             # Set flag
             self._flag_equalsign = True

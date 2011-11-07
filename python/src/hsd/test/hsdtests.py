@@ -1,4 +1,5 @@
 import hsd.parser as hsdparser
+from hsd.common import HSDATTR_EQUAL
 from collections import OrderedDict
 
 # Action flags
@@ -24,7 +25,7 @@ hsdtests_simple = [
      [ (OPEN, "test", {}, {}), (TEXT, "12"), (CLOSE, "test") ]),
     # Tag with equaled value
     ([ "test = 12", "test=12", " test =   12" ],
-     [ (OPEN, "test", {}, {"_hsd_equal": True}),
+     [ (OPEN, "test", {}, {HSDATTR_EQUAL: True}),
        (TEXT, "12"),
        (CLOSE, "test") ]),
     # Tag with text
@@ -33,7 +34,7 @@ hsdtests_simple = [
   Ga As
   1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
 }"""],
-     [ (OPEN, "Geometry", {}, {"_hsd_equal": True}), 
+     [ (OPEN, "Geometry", {}, {HSDATTR_EQUAL: True}), 
        (OPEN, "GenFormat", {}, {}),
        (TEXT, """2  S
   Ga As
@@ -41,16 +42,16 @@ hsdtests_simple = [
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
     # Equal with quotatin over many lines
     #([ 'test = "\nhello\n"' ],
-    # [ (OPEN, "test", {"_hsd_equal": True}), (TEXT, '"\nhello\n"'),
+    # [ (OPEN, "test", {HSDATTR_EQUAL: True}), (TEXT, '"\nhello\n"'),
     #  (CLOSE, "test")]),
     # Remark with after tag name
     ([ 'tag1 {\n  tag2 = value2\n  tag3 = value3\n}', 
        'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
      [ (OPEN, "tag1", {}, {}),
-       (OPEN, "tag2", {}, {"_hsd_equal": True}), 
+       (OPEN, "tag2", {}, {HSDATTR_EQUAL: True}), 
        (TEXT, "value2"),
        (CLOSE, "tag2"),
-       (OPEN, "tag3", {}, {"_hsd_equal": True}),
+       (OPEN, "tag3", {}, {HSDATTR_EQUAL: True}),
        (TEXT, "value3"),
        (CLOSE, "tag3"),
        (CLOSE, "tag1")]
@@ -71,7 +72,7 @@ hsdtests_defattr = [
        (CLOSE, "test") ]),
     # Simple tag with option and value
     ([ "temperature [kelvin] = 300" ],
-     [ (OPEN, "temperature", {"unit": "kelvin"}, {"_hsd_equal": True}),
+     [ (OPEN, "temperature", {"unit": "kelvin"}, {HSDATTR_EQUAL: True}),
        (TEXT, "300"),
        (CLOSE, "temperature")]),
     ([ "test [unit=Kelvin,dimension=3] {}", 
@@ -96,7 +97,7 @@ hsdtests_expattr = [
     ([ "test [option=value] {}\ntemperature [kelvin] = 300" ],
      [ (OPEN, "test", {"option": "value",}, {}),
        (CLOSE, "test"),
-       (OPEN, "temperature", {"default": "kelvin"}, {"_hsd_equal": True}),
+       (OPEN, "temperature", {"default": "kelvin"}, {HSDATTR_EQUAL: True}),
        (TEXT, "300"), (CLOSE, "temperature")]),
     ]
 
