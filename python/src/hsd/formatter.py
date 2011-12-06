@@ -1,7 +1,6 @@
 """Formatting utilities for HSD content.
 """
 import sys
-from collections import OrderedDict
 from hsd.common import HSDATTR_EQUAL
 
 __all__ = [ "HSDFormatter", "HSDStreamFormatter" ]
@@ -110,9 +109,8 @@ class HSDStreamFormatter:
         """Intializes HSDFeedPrinter instance.
         
         Args:
-            indent: String used for indenting.
-            target: File where the output is written (default: stdout).
-            parser: Event controled parser to be used (default: HSDParser). 
+            parser: Event controled parser to be used.
+            formatter: Formatter to be used. 
         """
         self._parser = parser
         self._formatter = formatter

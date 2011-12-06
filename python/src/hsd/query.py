@@ -1,5 +1,5 @@
 from hsd.common import *
-from hsd.converter import *
+from hsd.tree import Element
 
 
 class HSDQuery:
@@ -17,7 +17,7 @@ class HSDQuery:
         self.chkunique = chkuniqueness
         self.mark = markprocessed
     
-    def findchild(self, node, name, optional):
+    def findchild(self, node, name, optional=False):
         """Finds a child of a node with a given name.
         
         Args:
@@ -46,7 +46,7 @@ class HSDQuery:
         self.markprocessed(child)
         return child
     
-    def findchildren(self, node, name, optional):
+    def findchildren(self, node, name, optional=False):
         """Finds children of a node with given name.
         
         Args:
@@ -68,15 +68,15 @@ class HSDQuery:
         self.markprocessed(*children)
         return children
     
-    def getonlychild(self, node, defchild=None, hsdequal=True):
+    def getonlychild(self, node, defchild=None, hsdblock=False):
         """Returns the first child of a node, which must be the only child.
         
         Args:
             node: Parent node.
             defchild: Default value for the child. If specified and no child is
                 found, the default is appended to the tree and returned.
-            hsdequal: If True, the hsd flag signalising equal sign is set,
-                when the default value is used.
+            hsdblock: If True, the the given value is added in hsd block
+                notation (enclosed in curly braces) instead of an assignment. 
                 
         Returns:
             The only child of the node.
@@ -90,7 +90,7 @@ class HSDQuery:
         else:
             child = defchild
             node.append(child)
-            if hsdequal:
+            if not hsdblock:
                 node.hsdattrib[HSDATTR_EQUAL] = True
         self.markprocessed(child)
         return child
@@ -128,7 +128,7 @@ class HSDQuery:
         return child
                 
     def getvalue(self, node, name, converter, defvalue=None, defattribs=None,
-                 hsdequal=True):
+                 hsdblock=False):
         """Returns the value (text) stored in a child with a given name. The 
         value is converted using the provided converter.
         
@@ -141,8 +141,8 @@ class HSDQuery:
             defvalue: Optional default value used if child has not been found.
             defattribs: Optional default attribute dictionary used if child
                 has not been found.
-            hsdequal: If True, the hsd flag signalising equal sign is set,
-                when the default value is used.
+            hsdblock: If True, the the given value is added in hsd block
+                notation (enclosed in curly braces) instead of an assignment. 
                 
         Returns:
             The converted value of the child node's text or the default value
@@ -162,13 +162,13 @@ class HSDQuery:
         else:
             child = converter.tohsd(name, defvalue, defattribs or {})
             self.markprocessed(child)
-            if hsdequal:
+            if not hsdblock:
                 child.hsdattrib[HSDATTR_EQUAL] = True
             node.append(child)
             return defvalue
         
     def getvaluenode(self, node, name, converter, defvalue=None,
-                     defattribs=None, hsdequal=True):
+                     defattribs=None, hsdblock=False):
         """Returns the child node of a child with a given name. The child node
         can have only one child. This is converted via the provided converter.
         
@@ -181,8 +181,8 @@ class HSDQuery:
             defvalue: Optional default value used if child has not been found.
             defattribs: Optional default attribute dictionary used if child
                 has not been found.
-            hsdequal: If True, the hsd flag signalising equal sign is set,
-                when the default value is used.
+            hsdblock: If True, the the given value is added in hsd block
+                notation (enclosed in curly braces) instead of an assignment. 
                 
         Returns:
             The converted node of the child node's first child or the default
@@ -205,7 +205,7 @@ class HSDQuery:
             return converter.fromhsd(child)
         else:
             child = converter.tohsd(name, defvalue, defattribs or {})
-            if hsdequal:
+            if not hsdblock:
                 child.hsdattrib[HSDATTR_EQUAL] = True
             self.markprocessed(child, child[0])
             node.append(child)
@@ -223,7 +223,7 @@ class HSDQuery:
                 if node is not None:
                     node.hsdattrib[HSDATTR_PROC] = True
         
-    def findunprocessednodes(self, node):
+    def findunprocessednodes(self, node, allnodes=False):
         """Returns list of all nodes which had been not marked as processed.
         
         Args:
@@ -237,7 +237,9 @@ class HSDQuery:
         for child in node:
             if child.hsdattrib.get(HSDATTR_PROC, None) is None:
                 unprocessed.append(child)
-            unprocessed += self.findunprocessednodes(child)
+                if not allnodes:
+                    continue
+            unprocessed += self.findunprocessednodes(child, allnodes)
         return unprocessed
 
 
@@ -246,9 +248,18 @@ if __name__ == "__main__":
     from hsd.treebuilder import HSDTreeBuilder
     from hsd.parser import HSDParser
     from hsd.tree import HSDTree
+    from hsd.converter import *
     import sys
     parser = HSDParser(defattrib="unit")
     builder = HSDTreeBuilder(parser=parser)
+    
+    # Defining force type (scalar, list)
+    force_units = { "eV/AA": 0.0194469050555 }
+    hsdforce = HSDScalarUnit(TxtFloat(),
+                             MultiplicativeUnitConverter(force_units))
+    def hsdforcelist(nitem=-1):
+        return HSDListUnit(TxtFloat(), MultiplicativeUnitConverter(force_units),
+                       nitem)
     
     stream = StringIO("""
 Driver {}
@@ -263,9 +274,6 @@ Hamiltonian = DFTB {
   MaxAngularMomentum {
     O = "p"
     H = "s"
-  }
-  Filling = Fermi {
-    Temperature [Kelvin] = 100
   }
   # Mixer = Broyden {
   #   MixingParameter = 0.2
@@ -311,11 +319,6 @@ Options {
     mangmom = qy.getchild(dftb, "MaxAngularMomentum")
     maxangs = [ qy.getvalue(mangmom, species, hsdstr)
                 for species in ["O", "H"] ]
-    filling = qy.getvaluenode(dftb, "Filling", hsdnode)
-    if filling.tag == "Fermi":
-        temp = qy.getvalue(filling, "Temperature", hsdtemperature, 0)
-    else:
-        raise HSDInvalidChildException()
     mixer = qy.getvaluenode(dftb, "Mixer", hsdnode, Element("Broyden"))
     if mixer.tag == "Broyden":
         mixparam = qy.getvalue(mixer, "MixingParameter", hsdfloat, 0.2)
@@ -328,6 +331,6 @@ Options {
     parseroptions = qy.getchild(root, "ParserOptions", "")
     parserversion = qy.getvalue(parseroptions, "ParserVersion", hsdint, 4)
     tree = HSDTree(root)
-    tree.writehsd(sys.stdout)
+    tree.writehsd()
     print("\nUnprocessed: ", qy.findunprocessednodes(root))
     

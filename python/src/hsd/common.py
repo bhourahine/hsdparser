@@ -14,3 +14,4 @@ class HSDInvalidAttributeValueException(HSDException): pass
 
 HSDATTR_PROC = "processed"
 HSDATTR_EQUAL = "equal"
+

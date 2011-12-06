@@ -4,18 +4,15 @@ from hsd.formatter import HSDFormatter
 class HSDTree(etree.ElementTree):
     """Wrapper around an entire tree."""  
 
-    def writehsd(self, stream, formatter=None):
+    def writehsd(self, formatter=None):
         """Writes the tree in HSD format.
         
         Args:
-            stream: File like object or file name, where the tree should be
-                written.
-            formatter: Optional formatter object. (default: HSDFormatter())
+            formatter: Optional formatter object. (default: HSDFormatter(), 
+                writing to sys.stdout)
         """
         if formatter is None:
             formatter = HSDFormatter()
-        if not hasattr(stream, "write"):
-            stream = open(stream, "w")
         self._writehsd(self.getroot(), formatter)
         
     def _writehsd(self, parent, formatter):
@@ -36,7 +33,7 @@ class _ElementInterface(etree._ElementInterface):
     hsdattrib = None
     
     def __init__(self, tag, attrib, hsdattrib=None):
-        etree._ElementInterface.__init__(self, tag, attrib)
+        super().__init__(tag, attrib)
         self.hsdattrib = hsdattrib
         
     def sethsdattribs(self, hsdattrib):
@@ -46,7 +43,7 @@ class _ElementInterface(etree._ElementInterface):
         return Element(tag, attrib, hsdattrib)
     
     def clear(self):
-        etree._ElementInterface.clear(self)
+        super().clear()
         self.hsdattrib.clear()
         
 
@@ -65,16 +62,16 @@ def SubElement(parent, tag, attrib={}, hsdattrib={}):
     parent.append(element)
     return element
 
-          
+
 class TreeBuilder(etree.TreeBuilder):
     """Treebuilder able to cope with extra hsd attributes."""
     
     def __init__(self, element_factory=None):
         if element_factory is None:
             element_factory = _ElementInterface
-        etree.TreeBuilder.__init__(self, element_factory)
+        super().__init__(element_factory)
         
     def start(self, tag, attrs, hsdattrs):
-        elem = etree.TreeBuilder.start(self, tag, attrs)
+        elem = super().start(tag, attrs)
         elem.sethsdattribs(hsdattrs)
         return elem

@@ -75,5 +75,5 @@ Options {
   WriteHS = No
 }""")
     tree = newBuilder.build(stream)
-    newTree = hsdtree.ElementTree(tree)
+    newTree = hsdtree.HSDTree(tree)
     newTree.write(sys.stdout)
