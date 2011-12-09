@@ -86,7 +86,7 @@ class HSDNode(HSDConverter):
     def fromhsd(self, node):
         self.checkattributes(node)
         if len(node) != 1:
-            raise HSDInvalidChildException()
+            raise HSDInvalidTagException()
         if node[0].attrib:
             raise HSDInvalidAttributeException()
         return node[0]
@@ -118,7 +118,7 @@ class HSDScalar(HSDConverter):
         try:
             elem = self.type.fromtxt(node.text.strip())
         except ValueError:
-            raise HSDInvalidValueException()
+            raise HSDInvalidTagValueException()
         return elem 
     
     def tohsd(self, tag, value, attrib):
@@ -184,9 +184,9 @@ class HSDList(HSDConverter):
         try:
             elems = [ self.type.fromtxt(ss) for ss in node.text.split() ]
         except ValueError:
-            raise HSDInvalidValueException()
+            raise HSDInvalidTagValueException()
         if self.nitem != -1 and len(elems) != self.nitem:
-            raise HSDInvalidValueException() 
+            raise HSDInvalidTagValueException() 
     
     def tohsd(self, tag, value, attrib):
         strs = [ self.type.totxt(vv) for vv in value ]

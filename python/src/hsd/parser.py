@@ -11,10 +11,9 @@ QUOTATION_ERROR = 3
 BRACKET_ERROR = 4
 
 class HSDParserError(HSDException):
+    """Base class for parser related errors."""
     pass
 
-class HSDStopParser(HSDException):
-    pass
 
 class HSDParser:
     """Event based parser for the Human-readable Structred data format.
@@ -242,7 +241,7 @@ class HSDParser:
         self.start_handler(tagname_stripped, self._options, self._hsdoptions)
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
-        self._currenttags.append((tagname_stripped,self._curr_line))
+        self._currenttags.append((tagname_stripped, self._curr_line))
         self._currenttags_flags.append(flag_tag)
         
     def _closetag(self):

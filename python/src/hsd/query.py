@@ -1,6 +1,37 @@
 from hsd.common import *
 from hsd.tree import Element
 
+__all__ = [ "HSDQueryError", "HSDMissingTagException", "HSDInvalidTagException",
+           "HSDInvalidTagValueException", "HSDMissingAttributeException",
+           "HSDInvalidAttributeException", "HSDInvalidAttributeValueException",
+           "HSDQuery"]
+
+
+class HSDQueryError(HSDException):
+    """Base class for errors detected by the HSDQuery object.
+    
+    Attributes:
+        filename: Name of the file where error occured (or empty string).
+        lines: Tuple (from, to) representing the range of lines where the
+            error occured (or None).
+        tagname: Name of the tag with the error (or empty string).
+        attribname: Name of the attribute with the error (or empty string).    
+    """
+    
+    def __init__(self, msg="", node=None):
+        super().__init__(msg)
+        hsdattrib = node.hsdattrib if node else {}
+        self.tagname = node.tag if node else None
+        self.filename = hsdattrib.get(HSDATTR_FILE, "")
+        self.lines = hsdattrib.get(HSDATTR_LINES, None)
+
+class HSDMissingTagException(HSDQueryError): pass
+class HSDInvalidTagException(HSDQueryError): pass
+class HSDInvalidTagValueException(HSDQueryError): pass
+class HSDMissingAttributeException(HSDQueryError): pass
+class HSDInvalidAttributeException(HSDQueryError): pass
+class HSDInvalidAttributeValueException(HSDQueryError): pass
+
 
 class HSDQuery:
     """Class providing methods for querying a HSD-tree."""
@@ -29,20 +60,22 @@ class HSDQuery:
             A hsd node if child has been found or None.
             
         Raises:
-            HSDMissingChildException: if child was not found and the optional
+            HSDMissingTagException: if child was not found and the optional
                 flag was False.
-            HSDInvalidChildException: if there are duplicates of the child
+            HSDInvalidTagException: if there are duplicates of the child
                 and the query object was initialized with chkuniqueness=True.
         """
         if self.chkunique:
             children = node.findall(name)
             if len(children > 1):
-                raise HSDInvalidChildException()
+                raise HSDInvalidTagException(node=children[1],
+                    msg="Double occurance of unique tag '{0}'.".format(name))
             child = children[0] if children else None
         else:
             child = node.find(name)
         if child is None and not optional:
-            raise HSDMissingChildException()
+            raise HSDMissingTagException(
+                msg="Required tag '{0}' not found.".format(name), node=node)
         self.markprocessed(child)
         return child
     
@@ -59,12 +92,13 @@ class HSDQuery:
             List of child nodes or empty list.
             
         Raises:
-            HSDMissingChildException: if no children were not found and the
+            HSDMissingTagException: if no children were not found and the
                 optional flag was False.
         """
         children = node.findall(name)
         if not children and not optional:
-            raise HSDMissingChildException()
+            raise HSDMissingTagException(node=node, msg="No occurrence of "
+                "required tag '{0}' found.".format(name))
         self.markprocessed(*children)
         return children
     
@@ -80,13 +114,19 @@ class HSDQuery:
                 
         Returns:
             The only child of the node.
+            
+        Raises:
+            HSDInvalidTagException: If tag has more than one child.
+            HSDMissingTagException: If tag has no child.
         """ 
         if len(node) > 1:
-            raise HSDInvalidChildException()
+            raise HSDInvalidTagException(msg="Tag '{0}' is only allowed to "
+                "have one child.".format(node.tag), node=node)
         elif len(node) == 1:
             child = node[0]
         elif defchild is None:
-            raise HSDMissingChildException()
+            raise HSDMissingTagException(msg="Tag '{0}' must have exactly one "
+                "child.".format(node.tag), node=node)
         else:
             child = defchild
             node.append(child)
@@ -112,19 +152,17 @@ class HSDQuery:
             the tree.
             
         Raises:
-            HSDMissingChildException: if the child was not found and no default
+            HSDMissingTagException: if the child was not found and no default
                 value had been specified.
         """
         optional = deftext is not None
         child = self.findchild(node, name, optional)
+        # findchild only returns if child has been found or optional is True.
         if child is None:
-            if not optional:
-                raise HSDMissingChildException()
-            else:
-                child = Element(name, defattribs or {})
-                child.text = deftext
-                self.markprocessed(child)
-                node.append(child)
+            child = Element(name, defattribs or {})
+            child.text = deftext
+            self.markprocessed(child)
+            node.append(child)
         return child
                 
     def getvalue(self, node, name, converter, defvalue=None, defattribs=None,
@@ -151,7 +189,7 @@ class HSDQuery:
             value is inserted into the tree.
                 
         Raises:
-            HSDMissingChildException: if child was not found and no default
+            HSDMissingTagException: if child was not found and no default
                 value had been specified.
             Any other excepction raised by the converter.
         """
@@ -190,17 +228,16 @@ class HSDQuery:
             node with the provided default subnode is inserted into the tree.
                 
         Raises:
-            HSDMissingChildException: if child was not found and no default
+            HSDMissingTagException: if child was not found and no default
                 value had been specified.
-            HSDInvalidChildException: If child has more than one children.
+            HSDInvalidTagException: If child has more than one child.
         """
         optional = defvalue is not None
         child = self.findchild(node, name, optional)
         if child is not None:
-            if not child:
-                raise HSDMissingChildException()
-            elif len(child) > 1:
-                raise HSDInvalidChildException()
+            if len(child) > 1:
+                raise HSDInvalidTagException("Tag '{0}' is not allowed to have"
+                    " more than one child".format(child.tag), node=child)
             self.markprocessed(child, child[0])
             return converter.fromhsd(child)
         else:
@@ -230,7 +267,7 @@ class HSDQuery:
             node: Parent node.
             
         Returns:
-            List of all nodes, which have not been queried via this query
+            List of all nodes, which have not been queried by a HSDQuery
             instance.
         """
         unprocessed = []
@@ -275,9 +312,9 @@ Hamiltonian = DFTB {
     O = "p"
     H = "s"
   }
-  # Mixer = Broyden {
-  #   MixingParameter = 0.2
-  # }  
+  Mixer = Broyden2 {
+    MixingParameter = 0.2
+  }
   #ReadInitialCharges = No
   KPointsAndWeights {
      0.0   0.0  0.0   0.25
@@ -309,7 +346,8 @@ Options {
             forcetol = qy.getvalue(dtype, "MaxForceComponent", hsdforce, 1e-4)
             stepsize = qy.getvalue(dtype, "StepSize", hsdfloat, 40.0)
         else:
-            raise HSDInvalidChildException()
+            raise HSDInvalidTagException(node=dtype, msg="Unknown driver type "
+                                         "'{0}'.".format(dtype.tag))
     print("DTYPE:", dtype)    
     ham = qy.getchild(root, "Hamiltonian")
     dftb = qy.getchild(ham, "DFTB")
@@ -323,7 +361,8 @@ Options {
     if mixer.tag == "Broyden":
         mixparam = qy.getvalue(mixer, "MixingParameter", hsdfloat, 0.2)
     else:
-        raise HSDInvalidChildException()
+        raise HSDInvalidTagException(node=mixer,
+            msg="Unknown mixer type '{0}'.".format(mixer.tag))
     readcharges = qy.getvalue(dftb, "ReadInitalCharges", hsdbool, False)
     kpoints = qy.getvalue(dftb, "KPointsAndWeights", hsdfloatlist())
     options = qy.getchild(root, "Options", "")

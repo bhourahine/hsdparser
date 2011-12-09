@@ -49,7 +49,7 @@ class HSDGeometry(HSDConverter):
         words = node.text.split()
         nn = len(words)
         if nn % 4:
-            raise HSDInvalidValueException()
+            raise HSDInvalidTagValueException()
         types = [ words[ii] for ii in range(0, nn, 4) ]
         tmp = [ (float(words[ii]), float(words[ii+1]), float(words[ii+2])) 
                for ii in range(1, nn, 4) ]
@@ -100,14 +100,14 @@ class HSDPlanesAndDistances(HSDArray):
         directions = array[:,0:3]
         distances = array[:,3]
         if np.any(np.abs(directions - directions.astype(int)) > 1e-12):
-            raise HSDInvalidValueException()
+            raise HSDInvalidTagValueException()
         return (directions, distances) 
                
 ###########################################################################
 # The input
 ###########################################################################
 stream = StringIO("""
-crystal {
+crystal3 {
   lattice_vectors {
     -0.189997466000E+01   0.189997466000E+01   0.485580074000E+01
      0.189997466000E+01  -0.189997466000E+01   0.485580074000E+01
@@ -172,7 +172,7 @@ if pertype.tag == "D1":
 elif pertype.tag == "D2":
     pass
 else:
-    raise HSDInvalidChildException()
+    raise HSDInvalidTagException()
 
 cuts = qy.getchild(root, "cuts")
 for cutmethod in qy.findchildren(cuts, "*"):
@@ -183,7 +183,7 @@ for cutmethod in qy.findchildren(cuts, "*"):
     elif cutmethod.tag == "whatever":
         pass
     else:
-        raise HSDInvalidChildException()
+        raise HSDInvalidTagException()
 
 # Write out tree, which contains now all defaults explicitly set.
 tree = HSDTree(root)
