@@ -7,32 +7,6 @@ __all__ = [ "HSDQueryError", "HSDMissingTagException", "HSDInvalidTagException",
            "HSDQuery"]
 
 
-class HSDQueryError(HSDException):
-    """Base class for errors detected by the HSDQuery object.
-    
-    Attributes:
-        filename: Name of the file where error occured (or empty string).
-        lines: Tuple (from, to) representing the range of lines where the
-            error occured (or None).
-        tagname: Name of the tag with the error (or empty string).
-        attribname: Name of the attribute with the error (or empty string).    
-    """
-    
-    def __init__(self, msg="", node=None):
-        super().__init__(msg)
-        hsdattrib = node.hsdattrib if node else {}
-        self.tagname = node.tag if node else None
-        self.filename = hsdattrib.get(HSDATTR_FILE, "")
-        self.lines = hsdattrib.get(HSDATTR_LINES, None)
-
-class HSDMissingTagException(HSDQueryError): pass
-class HSDInvalidTagException(HSDQueryError): pass
-class HSDInvalidTagValueException(HSDQueryError): pass
-class HSDMissingAttributeException(HSDQueryError): pass
-class HSDInvalidAttributeException(HSDQueryError): pass
-class HSDInvalidAttributeValueException(HSDQueryError): pass
-
-
 class HSDQuery:
     """Class providing methods for querying a HSD-tree."""
     
@@ -69,13 +43,13 @@ class HSDQuery:
             children = node.findall(name)
             if len(children > 1):
                 raise HSDInvalidTagException(node=children[1],
-                    msg="Double occurance of unique tag '{0}'.".format(name))
+                    msg="Double occurance of unique tag '{}'.".format(name))
             child = children[0] if children else None
         else:
             child = node.find(name)
         if child is None and not optional:
             raise HSDMissingTagException(
-                msg="Required tag '{0}' not found.".format(name), node=node)
+                msg="Required tag '{}' not found.".format(name), node=node)
         self.markprocessed(child)
         return child
     
@@ -98,7 +72,7 @@ class HSDQuery:
         children = node.findall(name)
         if not children and not optional:
             raise HSDMissingTagException(node=node, msg="No occurrence of "
-                "required tag '{0}' found.".format(name))
+                "required tag '{}' found.".format(name))
         self.markprocessed(*children)
         return children
     
@@ -120,12 +94,12 @@ class HSDQuery:
             HSDMissingTagException: If tag has no child.
         """ 
         if len(node) > 1:
-            raise HSDInvalidTagException(msg="Tag '{0}' is only allowed to "
+            raise HSDInvalidTagException(msg="Tag '{}' is only allowed to "
                 "have one child.".format(node.tag), node=node)
         elif len(node) == 1:
             child = node[0]
         elif defchild is None:
-            raise HSDMissingTagException(msg="Tag '{0}' must have exactly one "
+            raise HSDMissingTagException(msg="Tag '{}' must have exactly one "
                 "child.".format(node.tag), node=node)
         else:
             child = defchild
@@ -236,7 +210,7 @@ class HSDQuery:
         child = self.findchild(node, name, optional)
         if child is not None:
             if len(child) > 1:
-                raise HSDInvalidTagException("Tag '{0}' is not allowed to have"
+                raise HSDInvalidTagException("Tag '{}' is not allowed to have"
                     " more than one child".format(child.tag), node=child)
             self.markprocessed(child, child[0])
             return converter.fromhsd(child)
@@ -286,7 +260,6 @@ if __name__ == "__main__":
     from hsd.parser import HSDParser
     from hsd.tree import HSDTree
     from hsd.converter import *
-    import sys
     parser = HSDParser(defattrib="unit")
     builder = HSDTreeBuilder(parser=parser)
     
@@ -312,8 +285,8 @@ Hamiltonian = DFTB {
     O = "p"
     H = "s"
   }
-  Mixer = Broyden2 {
-    MixingParameter = 0.2
+  Mixer = Broyden {
+    MixingParameter [dfd] = 0.2
   }
   #ReadInitialCharges = No
   KPointsAndWeights {
@@ -347,7 +320,7 @@ Options {
             stepsize = qy.getvalue(dtype, "StepSize", hsdfloat, 40.0)
         else:
             raise HSDInvalidTagException(node=dtype, msg="Unknown driver type "
-                                         "'{0}'.".format(dtype.tag))
+                                         "'{}'.".format(dtype.tag))
     print("DTYPE:", dtype)    
     ham = qy.getchild(root, "Hamiltonian")
     dftb = qy.getchild(ham, "DFTB")
@@ -362,7 +335,7 @@ Options {
         mixparam = qy.getvalue(mixer, "MixingParameter", hsdfloat, 0.2)
     else:
         raise HSDInvalidTagException(node=mixer,
-            msg="Unknown mixer type '{0}'.".format(mixer.tag))
+            msg="Unknown mixer type '{}'.".format(mixer.tag))
     readcharges = qy.getvalue(dftb, "ReadInitalCharges", hsdbool, False)
     kpoints = qy.getvalue(dftb, "KPointsAndWeights", hsdfloatlist())
     options = qy.getchild(root, "Options", "")

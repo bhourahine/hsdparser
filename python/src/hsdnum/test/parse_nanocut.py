@@ -10,7 +10,7 @@ from hsd.treebuilder import HSDTreeBuilder
 from hsd.parser import HSDParser
 from hsd.converter import *
 from hsdnum.converter import *
-from hsd.query import HSDQuery
+from hsd.query import *
 from hsd.formatter import HSDFormatter
 
 ATTR_UNIT = "unit"
@@ -107,7 +107,7 @@ class HSDPlanesAndDistances(HSDArray):
 # The input
 ###########################################################################
 stream = StringIO("""
-crystal3 {
+crystal [test] {
   lattice_vectors {
     -0.189997466000E+01   0.189997466000E+01   0.485580074000E+01
      0.189997466000E+01  -0.189997466000E+01   0.485580074000E+01
@@ -127,6 +127,7 @@ crystal3 {
 periodicity = D1 {
   axis [fractional] = 1 1 0
 }
+
 
 # Those options will not be parsed.
 unknown_option = 12
@@ -159,41 +160,52 @@ root = builder.build(stream)
 
 # Query object should mark all queried object as "processed" 
 qy = HSDQuery(markprocessed=True)
-crystal = qy.getchild(root, "crystal")
-latvecs = qy.getvalue(crystal, "lattice_vectors", hsdfloatarray((3,3)))
-# This option is not present in the output, default value will be set.
-l2 = qy.getvalue(crystal, "latvecs2", hsdfloatarray((3,3)), 
-                 defvalue=np.identity(3, dtype=float), hsdblock=True)
-types, coords = qy.getvalue(crystal, "basis", HSDGeometry(latvecs))
-periodicity = qy.getchild(root, "periodicity")
-pertype = qy.getonlychild(periodicity)
-if pertype.tag == "D1":
-    axis = qy.getvalue(pertype, "axis", HSDCoordVector(latvecs))
-elif pertype.tag == "D2":
-    pass
-else:
-    raise HSDInvalidTagException()
-
-cuts = qy.getchild(root, "cuts")
-for cutmethod in qy.findchildren(cuts, "*"):
-    order = qy.getvalue(cutmethod, "order", hsdint)
-    if cutmethod.tag == "convex_prism":
-        planenormvecs, dists = qy.getvalue(cutmethod, "planes_and_distances",
-                                           HSDPlanesAndDistances(latvecs))
-    elif cutmethod.tag == "whatever":
+try:
+    crystal = qy.getchild(root, "crystal")
+    latvecs = qy.getvalue(crystal, "lattice_vectors", hsdfloatarray((3,3)))
+    # This option is not present in the output, default value will be set.
+    l2 = qy.getvalue(crystal, "latvecs2", hsdfloatarray((3,3)), 
+                     defvalue=np.identity(3, dtype=float), hsdblock=True)
+    types, coords = qy.getvalue(crystal, "basis", HSDGeometry(latvecs))
+    periodicity = qy.getchild(root, "periodicity")
+    pertype = qy.getonlychild(periodicity)
+    if pertype.tag == "D1":
+        axis = qy.getvalue(pertype, "axis", HSDCoordVector(latvecs))
+    elif pertype.tag == "D2":
         pass
     else:
-        raise HSDInvalidTagException()
+        raise HSDInvalidTagException(node=pertype, msg="Invalid periodicity "
+            "type '{}'.".format(pertype.tag))
+    
+    cuts = qy.getchild(root, "cuts")
+    for cutmethod in qy.findchildren(cuts, "*"):
+        order = qy.getvalue(cutmethod, "order", hsdint)
+        if cutmethod.tag == "convex_prism":
+            planenormvecs, dists = qy.getvalue(cutmethod, "planes_and_distances",
+                                               HSDPlanesAndDistances(latvecs))
+        elif cutmethod.tag == "whatever":
+            pass
+        else:
+            raise HSDInvalidTagException(node=cutmethod, msg="Invalid cutting "
+                "method type '{}'.".format(cutmethod.tag))
 
-# Write out tree, which contains now all defaults explicitly set.
-tree = HSDTree(root)
-tree.writehsd(HSDFormatter(target=sys.stdout, closecomments=True))
-
-# Give warning, if unprocessed nodes present.
-unprocessed = qy.findunprocessednodes(root)
-if unprocessed:
-    print("\nWARNING: UNPROCESSED NODES:")
-    for node in unprocessed:
-        print(node.tag)
+except HSDQueryError as ex:
+    print("ERROR: " + str(ex))
+    if ex.file:
+        print("File: " + ex.file)
+    if ex.line is not None:
+        print("Line: {}".format(ex.line + 1))
+        
+else:    
+    # Write out tree, which contains now all defaults explicitly set.
+    tree = HSDTree(root)
+    tree.writehsd(HSDFormatter(target=sys.stdout, closecomments=True))
+    
+    # Give warning, if unprocessed nodes present.
+    unprocessed = qy.findunprocessednodes(root)
+    if unprocessed:
+        print("\nWARNING: UNPROCESSED NODES:")
+        for node in unprocessed:
+            print(node.tag)
     
     

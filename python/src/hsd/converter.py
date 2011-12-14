@@ -75,8 +75,11 @@ class HSDConverter:
             HSDInvalidAttributeException if any attributes appear which are not
                 part of the specified set.
         """
-        if not self.allowedattribs >= frozenset(node.keys()):
-            raise HSDInvalidAttributeException()
+        nodekeys = frozenset(node.keys())
+        if not self.allowedattribs >= nodekeys:
+            tmp = "', '".join(list(nodekeys - self.allowedattribs))
+            raise HSDInvalidAttributeException(node=node, msg="Tag '{}' "
+                "contains invalid attribute(s) '{}'.".format(node.tag, tmp))
 
     
 class HSDNode(HSDConverter):
@@ -86,9 +89,11 @@ class HSDNode(HSDConverter):
     def fromhsd(self, node):
         self.checkattributes(node)
         if len(node) != 1:
-            raise HSDInvalidTagException()
+            raise HSDInvalidTagException(msg="Tag '{}' must have exactly one "
+                "child.".format(node.tag), node=node)
         if node[0].attrib:
-            raise HSDInvalidAttributeException()
+            raise HSDInvalidAttributeException(msg="Tag '{}' can not have any "
+                "attributes.".format(node[0].tag), node=node[0])
         return node[0]
     
     def tohsd(self, tag, value, attrib):
@@ -118,7 +123,8 @@ class HSDScalar(HSDConverter):
         try:
             elem = self.type.fromtxt(node.text.strip())
         except ValueError:
-            raise HSDInvalidTagValueException()
+            raise HSDInvalidTagValueException(msg="The value of tag '{}' could "
+                "not be converted.".format(node.tag), node=node)
         return elem 
     
     def tohsd(self, tag, value, attrib):
@@ -184,9 +190,12 @@ class HSDList(HSDConverter):
         try:
             elems = [ self.type.fromtxt(ss) for ss in node.text.split() ]
         except ValueError:
-            raise HSDInvalidTagValueException()
+            raise HSDInvalidTagValueException(node=node, msg="One of the "
+                "values of tag '{}' could not be converted.".format(node.tag))
         if self.nitem != -1 and len(elems) != self.nitem:
-            raise HSDInvalidTagValueException() 
+            raise HSDInvalidTagValueException(node=node, msg="Tag '{}' contains"
+                " {} elements instead of {}.".format(node.tag, len(elems), 
+                                                     self.nitem)) 
     
     def tohsd(self, tag, value, attrib):
         strs = [ self.type.totxt(vv) for vv in value ]

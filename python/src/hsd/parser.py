@@ -1,4 +1,4 @@
-from hsd.common import HSDException, HSDATTR_EQUAL
+from hsd.common import HSDException, HSDATTR_EQUAL, HSDATTR_LINE
 from collections import OrderedDict
 
 
@@ -10,16 +10,12 @@ TAG_ERROR = 2
 QUOTATION_ERROR = 3
 BRACKET_ERROR = 4
 
-class HSDParserError(HSDException):
-    """Base class for parser related errors."""
-    pass
-
 
 class HSDParser:
-    """Event based parser for the Human-readable Structred data format.
+    """Event based parser for the Human-readable Structured Data format.
     
     The methods start_handler, close_handler, text_handler and error_handler
-    should be overriden by the actual application.
+    should be overridden by the actual application.
     """
     
     def __init__(self, defattrib="default"):
@@ -238,6 +234,7 @@ class HSDParser:
         self._argument = []
         tagname_stripped = tagname.strip()
         # Call event handler
+        self._hsdoptions[HSDATTR_LINE] = self._curr_line
         self.start_handler(tagname_stripped, self._options, self._hsdoptions)
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
