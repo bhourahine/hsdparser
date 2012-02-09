@@ -1,7 +1,7 @@
 import hsd.parser as hsdparser
 import hsd.tree as hsdtree
     
-class HsdTreeBuilder:
+class HSDTreeBuilder:
     
     def __init__(self, roottag="hsd", parser=None):
         if parser:
@@ -32,7 +32,7 @@ class HsdTreeBuilder:
 if __name__ == "__main__":
     from io import StringIO
     import sys
-    newBuilder = HsdTreeBuilder()
+    newBuilder = HSDTreeBuilder()
     stream = StringIO("""Geometry = GenFormat {
 2  S
 Ga As
