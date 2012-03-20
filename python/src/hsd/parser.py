@@ -1,4 +1,4 @@
-from hsd.common import HSDException, HSDATTR_EQUAL, HSDATTR_LINE
+from hsd.common import HSDParserError, HSDATTR_EQUAL, HSDATTR_LINE
 from collections import OrderedDict
 
 
