@@ -43,7 +43,7 @@ hsdtests_simple = [
     # Equal with quotatin over many lines
     #([ 'test = "\nhello\n"' ],
     # [ (OPEN, "test", {HSDATTR_EQUAL: True}), (TEXT, '"\nhello\n"'),
-    #  (CLOSE, "test")]),
+      #(CLOSE, "test")]),
     # Remark with after tag name
     ([ 'tag1 {\n  tag2 = value2\n  tag3 = value3\n}', 
        'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
@@ -106,8 +106,8 @@ hsdtests_error = [
     # Unparsed text in braces
     #([ "Option {\n123\nKeyword = Value}" ],
     # [ (OPEN, "Option", {}), (ERROR, hsdparser.SYNTAX_ERROR) ]),
-    ([ "123 Option {}"],
-     [ (ERROR, hsdparser.SYNTAX_ERROR)]),
-    ([ "123 Option = 12"],
-     [ (ERROR, hsdparser.SYNTAX_ERROR)]),
+    #([ "123 Option {}"],
+    #[ (ERROR, hsdparser.SYNTAX_ERROR)]),
+    #([ "123 Option = 12"],
+    #[ (ERROR, hsdparser.SYNTAX_ERROR)]),
     ]

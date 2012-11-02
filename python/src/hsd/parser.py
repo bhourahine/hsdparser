@@ -38,6 +38,7 @@ class HSDParser:
         self._flag_options = False
         self._flag_options_text = False
         self._flag_quote = False
+        self._flag_syntax = False
         
     def feed(self, fileobj):
         """Feeds the parser with data.
@@ -180,7 +181,8 @@ class HSDParser:
             self._parse(after)
             
         elif sign == "#":
-            pass
+            self._text(before)
+            self._closetag()
         
         elif sign == "[":
             self._flag_options_text = True
@@ -227,9 +229,12 @@ class HSDParser:
             self._quote = []
         else:
             # Call event handler
-            self.text_handler(text)
+            self.text_handler(text.strip())
             
     def _starttag(self, tagname, flag_tag=False):
+        if(len(tagname.split()) > 1):
+            self._flag_syntax = True
+            self._error()
         # Reset self._argument
         self._argument = []
         tagname_stripped = tagname.strip()
@@ -263,6 +268,8 @@ class HSDParser:
             self.error_handler(QUOTATION_ERROR)
         elif self._brackets != 0:
             self.error_handler(BRACKET_ERROR)
+        elif self._flag_syntax:
+            self.error_handler(SYNTAX_ERROR)
                         
     def _parseoption(self, option):
         self._checkstr = "=,"
@@ -347,7 +354,6 @@ Hamiltonian = DFTB {
     0.0 0.0 0.0   1.0
   }
 }
-
 Options {
   AtomResolvedEnergies = No
   RestartFrequency = 20
