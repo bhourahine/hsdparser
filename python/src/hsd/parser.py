@@ -21,9 +21,9 @@ class HSDParser:
     def __init__(self, defattrib="default"):
         """Intializes a HSDParser instance.
         """
-        self._defattrib = defattrib
-        self._checkstr = "={};#[]'\"" 
-        self._currenttags = []
+        self._defattrib = defattrib        # def. attribute name
+        self._checkstr = "={};#[]'\""      # characters to look for
+        self._currenttags = []             # 
         self._currenttags_flags = []
         self._brackets = 0
         self._argument = []
@@ -120,19 +120,19 @@ class HSDParser:
             before = self.buffer
     
         if not sign:
-            if self._flag_equalsign:
+            if self._flag_quote:
+                self._quote.append(before)
+            elif self._flag_equalsign:
                 self._flag_equalsign = False
                 stripped = before.strip()
                 if stripped or self._quote:
                     self._text(stripped)
                 self._closetag()
-            #elif self._flag_quote:
-            #    self._flag_quote.append(before)
             elif self._brackets:
                 if before.strip():
                     self._argument.append(before)
-            if self._flag_quote:
-                self._quote.append(before)
+#            if self._flag_quote:
+#                self._quote.append(before)
             if self._flag_options_text:
                 self._option_text.append(before.strip())
                             
@@ -204,10 +204,12 @@ class HSDParser:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
                 self._quote.append(before)
+                self._quote.append("'")
                 self._parse(after)
             else:
                 self._checkstr = "'"
                 self._flag_quote = True
+                self._quote = "'"
                 self._parse(after)
                 
         elif sign == '"':
@@ -215,11 +217,13 @@ class HSDParser:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
                 self._quote.append(before)
+                self._quote.append('"')
                 self._parse(after)
                 
             else:
                 self._checkstr = '"'
                 self._flag_quote = True
+                self._quote.append('"')
                 self._parse(after)
                             
     def _text(self, text):

@@ -1,4 +1,3 @@
-import hsd.parser as hsdparser
 from hsd.common import HSDATTR_EQUAL
 from collections import OrderedDict
 
@@ -18,7 +17,7 @@ ERROR = 4
 # Input without options.
 hsdtests_simple = [
     # Tag without value
-    ([ "test {}", "test{}", "test { }"  ],  # "test{\n}", "test {\n\n }"
+    ([ "test {}", "test{}", "test { }", "test{\n}", "test {\n\n }"  ], 
      [ (OPEN, "test", {}, {}), (CLOSE, "test") ]),
     # Tag with bracketed value
     ([ "test {\n12\n}", "test{12}", "test{\n12}" ],
@@ -41,9 +40,9 @@ hsdtests_simple = [
   1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00"""),
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
     # Equal with quotatin over many lines
-    #([ 'test = "\nhello\n"' ],
-    # [ (OPEN, "test", {HSDATTR_EQUAL: True}), (TEXT, '"\nhello\n"'),
-      #(CLOSE, "test")]),
+    ([ 'test = "\nhello\n"' ],
+     [ (OPEN, "test", {}, {HSDATTR_EQUAL: True}), (TEXT, '"\nhello\n"'),
+      (CLOSE, "test")]),
     # Remark with after tag name
     ([ 'tag1 {\n  tag2 = value2\n  tag3 = value3\n}', 
        'tag1 {\n  tag2 = value2 # value3\n  tag3 = value3\n}'],
@@ -54,7 +53,7 @@ hsdtests_simple = [
        (OPEN, "tag3", {}, {HSDATTR_EQUAL: True}),
        (TEXT, "value3"),
        (CLOSE, "tag3"),
-       (CLOSE, "tag1")]
+       (CLOSE, "tag1") ]
      )
     ]
 
