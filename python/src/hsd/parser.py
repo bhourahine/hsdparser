@@ -22,23 +22,22 @@ class HSDParser:
         """Intializes a HSDParser instance.
         """
         self._defattrib = defattrib        # def. attribute name
-        self._checkstr = "={};#[]'\""      # characters to look for
-        self._currenttags = []             # 
+        self._checkstr = "={};#[]'\""      # special characters to look for
+        self._currenttags = []             # opened tags
         self._currenttags_flags = []
         self._brackets = 0
-        self._argument = []
+        self._buffer = []
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
         self._key = ""
-        self._quote = []
         self._curr_line = 0
         self._option_text = []
-        #Flags
+        # Flags
         self._flag_equalsign = False
-        self._flag_options = False
-        self._flag_options_text = False
+        self._flag_option = False
         self._flag_quote = False
         self._flag_syntax = False
+
         
     def feed(self, fileobj):
         """Feeds the parser with data.
@@ -57,6 +56,7 @@ class HSDParser:
         if isfilename:
             fp.close()
         self._error()
+
         
     def start_handler(self, tagname, options, hsdoptions):
         """Handler which is called when a tag is opened.
@@ -72,6 +72,7 @@ class HSDParser:
                 in the hsd-parser. 
         """
         pass
+
     
     def close_handler(self, tagname):
         """Handler which is called when a tag is closed.
@@ -84,6 +85,7 @@ class HSDParser:
             tagname: Name of the tag which had been closed.
         """ 
         pass
+
     
     def text_handler(self, text):
         """Handler which is called with the text found inside a tag.
@@ -95,6 +97,7 @@ class HSDParser:
            text: Text in the current tag.
         """
         pass
+
         
     def error_handler(self, error_code, error_line=(-1,-1)):
         """Handler which is called if an error was detected during parsing.
@@ -112,71 +115,45 @@ class HSDParser:
         error_msg = "Parsing error ({}) between lines {} - {}.".format(
             error_code, error_line[0] + 1, error_line[1] + 1)
         raise HSDParserError(error_msg)
+
                     
-    def _parse(self, current):
-        sign, before, after = splitbycharset(current, self._checkstr)
-        if self._flag_options:
-            self._flag_options = False
-            before = self.buffer
-    
+    def _parse(self, line):
+        """Parses a given line."""
+        sign, before, after = splitbycharset(line, self._checkstr)
+
         if not sign:
             if self._flag_quote:
-                self._quote.append(before)
+                self._buffer.append(before)
             elif self._flag_equalsign:
                 self._flag_equalsign = False
-                stripped = before.strip()
-                if stripped or self._quote:
-                    self._text(stripped)
+                self._text("".join(self._buffer) + before)
                 self._closetag()
             elif self._brackets:
-                if before.strip():
-                    self._argument.append(before)
-#            if self._flag_quote:
-#                self._quote.append(before)
-            if self._flag_options_text:
-                self._option_text.append(before.strip())
+                self._buffer.append(before)
+            if self._flag_option:
+                self._option_text.append(before)
                             
         elif sign == "=":
-            # Start a new tag
             self._hsdoptions[HSDATTR_EQUAL] = True
-            self._starttag(before)
-            # Set flag
+            self._starttag("".join(self._buffer) + before)
             self._flag_equalsign = True
-            # Continue parsing
             self._parse(after)
             
         elif sign == "{":
-            # Start a new tag
-            if self._flag_equalsign:
-                self._flag_equalsign = False
-                self._starttag(before, True)
-            else:
-                self._starttag(before)
-            # Count bracket
+            self._starttag("".join(self._buffer) + before, self._flag_equalsign)
+            self._flag_equalsign = False
             self._brackets += 1
-            # Continue parsing
             self._parse(after)
             
         elif sign == "}":
-            # Display _text
-            if self._argument:
-                self._text("".join(self._argument).strip())
-            else:
-                stripped = before.strip()
-                if stripped or self._quote:
-                    self._text(stripped)
-            # Close tag
+            self._text("".join(self._buffer) + before)
             self._closetag()
-            # Count bracket
             self._brackets -= 1
-            # Continue parsing
             self._parse(after)
             
         elif sign == ";":
             self._flag_equalsign = False
-            stripped = before.strip() 
-            if stripped:
-                self._text(stripped)
+            self._text(before)
             self._closetag()
             self._parse(after)
             
@@ -185,84 +162,75 @@ class HSDParser:
             self._closetag()
         
         elif sign == "[":
-            self._flag_options_text = True
-            self.buffer = before
+            self._flag_option = True
+            self._buffer.append(before)
             self._checkstr = "]"
             self._parse(after)
             
         elif sign == "]":
-            self._flag_options_text = False
-            self._option_text.append(before.strip())
+            self._flag_option = False
+            self._option_text.append(before)
             self._parseoption("".join(self._option_text))
             self._option_text = []
             self._checkstr = "={};#[]'\""
-            self._flag_options = True
             self._parse(after)
             
         elif sign == "'":
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote.append(before)
-                self._quote.append("'")
+                self._buffer.append(before + sign)
                 self._parse(after)
             else:
                 self._checkstr = "'"
                 self._flag_quote = True
-                self._quote = "'"
+                self._buffer.append(sign)
                 self._parse(after)
                 
         elif sign == '"':
             if self._flag_quote:
                 self._checkstr = "={};#[]'\""
                 self._flag_quote = False
-                self._quote.append(before)
-                self._quote.append('"')
+                self._buffer.append(before + sign)
                 self._parse(after)
-                
             else:
                 self._checkstr = '"'
                 self._flag_quote = True
-                self._quote.append('"')
+                self._buffer.append('"')
                 self._parse(after)
+
                             
     def _text(self, text):
-        if self._quote:
-            # Call event handler
-            self.text_handler("".join(self._quote))
-            self._quote = []
-        else:
-            # Call event handler
-            self.text_handler(text.strip())
+        stripped = text.strip()
+        if stripped:
+            self.text_handler(stripped)
+
             
     def _starttag(self, tagname, flag_tag=False):
-        if(len(tagname.split()) > 1):
+        tagname_stripped = tagname.strip()
+        if len(tagname.split()) > 1:
             self._flag_syntax = True
             self._error()
-        # Reset self._argument
-        self._argument = []
-        tagname_stripped = tagname.strip()
-        # Call event handler
+        self._buffer = []
         self._hsdoptions[HSDATTR_LINE] = self._curr_line
         self.start_handler(tagname_stripped, self._options, self._hsdoptions)
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
         self._currenttags.append((tagname_stripped, self._curr_line))
         self._currenttags_flags.append(flag_tag)
+
         
     def _closetag(self):
         if not self._currenttags:
-            self.error_handler(1, (0,self._curr_line))
-        # Reset self._argument
-        self._argument = []
-        # Call event handler
+            self.error_handler(1, (0, self._curr_line))
+        self._buffer = []
         self.close_handler(self._currenttags[-1][0])
         del self._currenttags[-1]
-        if self._currenttags_flags[-1]:
-            del self._currenttags_flags[-1]
+        flag_tag = self._currenttags_flags[-1]
+        del self._currenttags_flags[-1]
+        if flag_tag:
             self._closetag()
-        else:
-            del self._currenttags_flags[-1]
+
             
     def _error(self):
         if self._currenttags:
@@ -274,6 +242,7 @@ class HSDParser:
             self.error_handler(BRACKET_ERROR)
         elif self._flag_syntax:
             self.error_handler(SYNTAX_ERROR)
+
                         
     def _parseoption(self, option):
         self._checkstr = "=,"
@@ -326,7 +295,7 @@ if __name__ == "__main__":
     streamformatter = HSDStreamFormatter(parser, formatter)
     stream = StringIO("""Geometry = GenFormat {
 2  S
-Ga As
+ Ga As
 1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
 2    2    0.13567730000E+01   0.13567730000E+01   0.13567730000E+01
 0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
