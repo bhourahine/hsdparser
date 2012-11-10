@@ -17,10 +17,11 @@ ERROR = 4
 # Input without options.
 hsdtests_simple = [
     # Tag without value
-    ([ "test {}", "test{}", "test { }", "test{\n}", "test {\n\n }"  ], 
+    ([ "test {}", "test{}", "test { }", "test{\n}", "test {\n\n }",
+      "test = {}"  ], 
      [ (OPEN, "test", {}, {}), (CLOSE, "test") ]),
     # Tag with bracketed value
-    ([ "test {\n12\n}", "test{12}", "test{\n12}" ],
+    ([ "test {\n12\n}", "test{12}", "test{\n12}", "test = {\n12\n} "],
      [ (OPEN, "test", {}, {}), (TEXT, "12"), (CLOSE, "test") ]),
     # Tag with equaled value
     ([ "test = 12", "test=12", " test =   12" ],
@@ -39,9 +40,13 @@ hsdtests_simple = [
   Ga As
   1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00"""),
        (CLOSE, "GenFormat"), (CLOSE, "Geometry") ]),
-    # Equal with quotatin over many lines
+    # Equal with quotation over many lines
     ([ 'test = "\nhello\n"' ],
      [ (OPEN, "test", {}, {HSDATTR_EQUAL: True}), (TEXT, '"\nhello\n"'),
+      (CLOSE, "test")]),
+    # Escaped quotation
+    ([ 'test = "he\\"ll\\"o"'],
+     [ (OPEN, "test", {}, {HSDATTR_EQUAL: True}), (TEXT, '"he\\"ll\\"o"'),
       (CLOSE, "test")]),
     # Remark with after tag name
     ([ 'tag1 {\n  tag2 = value2\n  tag3 = value3\n}', 

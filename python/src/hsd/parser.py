@@ -119,85 +119,81 @@ class HSDParser:
                     
     def _parse(self, line):
         """Parses a given line."""
-        sign, before, after = splitbycharset(line, self._checkstr)
+        
+        while True:
+            sign, before, after = splitbycharset(line, self._checkstr)
 
-        if not sign:
-            if self._flag_quote:
-                self._buffer.append(before)
-            elif self._flag_equalsign:
+            # Reached end of line without special character    
+            if not sign:
+                if self._flag_quote:
+                    self._buffer.append(before)
+                elif self._flag_equalsign:
+                    self._flag_equalsign = False
+                    self._text("".join(self._buffer) + before)
+                    self._closetag()
+                elif self._brackets:
+                    self._buffer.append(before)
+                if self._flag_option:
+                    self._option_text.append(before)
+                break
+            
+            # Special character is escaped
+            elif before.endswith("\\"):
+                self._buffer.append(before + sign)
+                
+            elif sign == "=":
+                # Ignore if followed by "{" (DFTB+ compatibility)
+                if after.lstrip().startswith("{"):
+                    self._buffer.append(before)
+                else:
+                    self._hsdoptions[HSDATTR_EQUAL] = True
+                    self._starttag("".join(self._buffer) + before)
+                    self._flag_equalsign = True
+                
+            elif sign == "{":
+                self._starttag("".join(self._buffer) + before,
+                               self._flag_equalsign)
                 self._flag_equalsign = False
+                self._brackets += 1
+                
+            elif sign == "}":
                 self._text("".join(self._buffer) + before)
                 self._closetag()
-            elif self._brackets:
-                self._buffer.append(before)
-            if self._flag_option:
-                self._option_text.append(before)
-                            
-        elif sign == "=":
-            self._hsdoptions[HSDATTR_EQUAL] = True
-            self._starttag("".join(self._buffer) + before)
-            self._flag_equalsign = True
-            self._parse(after)
-            
-        elif sign == "{":
-            self._starttag("".join(self._buffer) + before, self._flag_equalsign)
-            self._flag_equalsign = False
-            self._brackets += 1
-            self._parse(after)
-            
-        elif sign == "}":
-            self._text("".join(self._buffer) + before)
-            self._closetag()
-            self._brackets -= 1
-            self._parse(after)
-            
-        elif sign == ";":
-            self._flag_equalsign = False
-            self._text(before)
-            self._closetag()
-            self._parse(after)
-            
-        elif sign == "#":
-            self._text(before)
-            self._closetag()
-        
-        elif sign == "[":
-            self._flag_option = True
-            self._buffer.append(before)
-            self._checkstr = "]"
-            self._parse(after)
-            
-        elif sign == "]":
-            self._flag_option = False
-            self._option_text.append(before)
-            self._parseoption("".join(self._option_text))
-            self._option_text = []
-            self._checkstr = "={};#[]'\""
-            self._parse(after)
-            
-        elif sign == "'":
-            if self._flag_quote:
-                self._checkstr = "={};#[]'\""
-                self._flag_quote = False
-                self._buffer.append(before + sign)
-                self._parse(after)
-            else:
-                self._checkstr = "'"
-                self._flag_quote = True
-                self._buffer.append(sign)
-                self._parse(after)
+                self._brackets -= 1
                 
-        elif sign == '"':
-            if self._flag_quote:
+            elif sign == ";":
+                self._flag_equalsign = False
+                self._text(before)
+                self._closetag()
+                
+            elif sign == "#":
+                self._text(before)
+                self._closetag()
+                break
+            
+            elif sign == "[":
+                self._flag_option = True
+                self._buffer.append(before)
+                self._checkstr = "]"
+                
+            elif sign == "]":
+                self._flag_option = False
+                self._option_text.append(before)
+                self._parseoption("".join(self._option_text))
+                self._option_text = []
                 self._checkstr = "={};#[]'\""
-                self._flag_quote = False
-                self._buffer.append(before + sign)
-                self._parse(after)
-            else:
-                self._checkstr = '"'
-                self._flag_quote = True
-                self._buffer.append('"')
-                self._parse(after)
+                
+            elif sign == "'" or sign == '"':
+                if self._flag_quote:
+                    self._checkstr = "={};#[]'\""
+                    self._flag_quote = False
+                    self._buffer.append(before + sign)
+                else:
+                    self._checkstr = sign
+                    self._flag_quote = True
+                    self._buffer.append(sign)
+
+            line = after
 
                             
     def _text(self, text):
@@ -310,7 +306,7 @@ Hamiltonian = DFTB {
   SCCTolerance = 1.0E-007
   MaxSCCIterations = 1000
   Mixer = Broyden {}
-  MaxAngularMomentum {
+  MaxAngularMomentum = {
     Ga = "d"
     As = "p"
   }
