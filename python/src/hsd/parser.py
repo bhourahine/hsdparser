@@ -31,7 +31,6 @@ class HSDParser:
         self._hsdoptions = OrderedDict()
         self._key = ""
         self._curr_line = 0
-        self._option_text = []
         # Flags
         self._flag_equalsign = False
         self._flag_option = False
@@ -125,7 +124,7 @@ class HSDParser:
 
             # Reached end of line without special character    
             if not sign:
-                if self._flag_quote:
+                if self._flag_quote or self._flag_option:
                     self._buffer.append(before)
                 elif self._flag_equalsign:
                     self._flag_equalsign = False
@@ -133,15 +132,13 @@ class HSDParser:
                     self._closetag()
                 elif self._brackets:
                     self._buffer.append(before)
-                if self._flag_option:
-                    self._option_text.append(before)
                 break
             
             # Special character is escaped
-            elif before.endswith("\\"):
+            elif before.endswith("\\") and not before.endswith("\\\\"):
                 self._buffer.append(before + sign)
                 
-            elif sign == "=":
+            elif sign == "=" and not self._flag_option:
                 # Ignore if followed by "{" (DFTB+ compatibility)
                 if after.lstrip().startswith("{"):
                     self._buffer.append(before)
@@ -149,6 +146,11 @@ class HSDParser:
                     self._hsdoptions[HSDATTR_EQUAL] = True
                     self._starttag("".join(self._buffer) + before)
                     self._flag_equalsign = True
+                    
+            elif sign == "=" and self._flag_option:
+                self._key = ("".join(self._buffer) + before).strip()
+                self._buffer = []
+                
                 
             elif sign == "{":
                 self._starttag("".join(self._buffer) + before,
@@ -174,13 +176,18 @@ class HSDParser:
             elif sign == "[":
                 self._flag_option = True
                 self._buffer.append(before)
-                self._checkstr = "]"
+                self._oldbuffer = self._buffer
+                self._buffer = []
+                self._checkstr = "]=,\"'"
+                self._options = OrderedDict()
+                self._key = ""
                 
             elif sign == "]":
+                value = "".join(self._buffer) + before
+                key = self._key if self._key else self._defattrib
+                self._options[key] = value.strip()
                 self._flag_option = False
-                self._option_text.append(before)
-                self._parseoption("".join(self._option_text))
-                self._option_text = []
+                self._buffer = self._oldbuffer
                 self._checkstr = "={};#[]'\""
                 
             elif sign == "'" or sign == '"':
@@ -192,7 +199,12 @@ class HSDParser:
                     self._checkstr = sign
                     self._flag_quote = True
                     self._buffer.append(sign)
-
+                    
+            elif sign == ",":
+                value = "".join(self._buffer) + before
+                key = self._key if self._key else self._defattrib
+                self._options[key] = value.strip()
+                    
             line = after
 
                             
@@ -238,27 +250,6 @@ class HSDParser:
             self.error_handler(BRACKET_ERROR)
         elif self._flag_syntax:
             self.error_handler(SYNTAX_ERROR)
-
-                        
-    def _parseoption(self, option):
-        self._checkstr = "=,"
-        sign, before, after = splitbycharset(option, self._checkstr)
-        if not sign:
-            if self._key:
-                self._key = self._key.strip()
-                self._options[self._key] = before
-                self._key = ""
-            else:
-                self._options[self._defattrib] = before
-            self._checkstr = "={};#[]'\""  
-        elif sign == "=":
-            self._key = before
-            self._parseoption(after)
-        elif sign == ",":
-            self._key = self._key.strip()
-            self._options[self._key] = before
-            self._key = ""
-            self._parseoption(after)
             
             
 def splitbycharset(txt, charset):
