@@ -1,4 +1,4 @@
-from hsd.common import HSDParserError, HSDATTR_EQUAL, HSDATTR_LINE
+from hsd.common import *
 from collections import OrderedDict
 
 
@@ -10,6 +10,8 @@ TAG_ERROR = 2
 QUOTATION_ERROR = 3
 BRACKET_ERROR = 4
 
+GENERAL_SPECIALS = "={}#[]'\";<"
+OPTION_SPECIALS = "]=,\"'"
 
 class HSDParser:
     """Event based parser for the Human-readable Structured Data format.
@@ -22,7 +24,8 @@ class HSDParser:
         """Intializes a HSDParser instance.
         """
         self._defattrib = defattrib        # def. attribute name
-        self._checkstr = "={};#[]'\""      # special characters to look for
+        self._checkstr = GENERAL_SPECIALS  # special characters to look for
+        self._oldcheckstr = ""
         self._currenttags = []             # opened tags
         self._currenttags_flags = []
         self._brackets = 0
@@ -47,8 +50,10 @@ class HSDParser:
         isfilename = isinstance(fileobj, str)
         if isfilename:
             fp = open(fileobj, "r")
+            self._fname = fileobj
         else:
             fp = fileobj
+            self._fname = ""
         for line in fp.readlines():
             self._parse(line)
             self._curr_line += 1
@@ -114,6 +119,46 @@ class HSDParser:
         error_msg = "Parsing error ({}) between lines {} - {}.".format(
             error_code, error_line[0] + 1, error_line[1] + 1)
         raise HSDParserError(error_msg)
+    
+    
+    def _interrupt_hsd(self, command):
+        """Handles hsd type interrupt.
+        
+        The base class implements following handling: Command is interpreted as
+        a file name (quotes eventually removed). A parser is opened with the
+        same handlers as the current one, and the given file is feeded in it.
+        
+        Args:
+            command: Unstripped string as specified in the HSD input after
+                the interrupt sign.   
+        """
+        fname = unquote(command.strip())
+        parser = HSDParser(defattrib=self._defattrib)
+        parser.start_handler = self.start_handler
+        parser.close_handler = self.close_handler
+        parser.text_handler = self.text_handler
+        parser.feed(fname)
+
+    
+    def _interrupt_txt(self, command):
+        """Handles text type interrupt.
+        
+        The base class implements following handling: Command is interpreted as
+        a file name (quotes eventually removed). The file is opened and its
+        content is read (without parsing) and added as text.
+        
+        Args:
+            command: Unstripped string as specified in the HSD input after
+                the interrupt sign.
+        
+        Returns:
+            Unparsed text to be added to the HSD input.
+        """
+        fname =  unquote(command.strip())
+        fp = open(fname, "r")
+        txt = fp.read()
+        fp.close()
+        return txt
 
                     
     def _parse(self, line):
@@ -151,7 +196,6 @@ class HSDParser:
                 self._key = ("".join(self._buffer) + before).strip()
                 self._buffer = []
                 
-                
             elif sign == "{":
                 self._starttag("".join(self._buffer) + before,
                                self._flag_equalsign)
@@ -169,16 +213,15 @@ class HSDParser:
                 self._closetag()
                 
             elif sign == "#":
-                self._text(before)
-                self._closetag()
-                break
+                self._buffer.append(before)
+                after = ""
             
             elif sign == "[":
                 self._flag_option = True
                 self._buffer.append(before)
                 self._oldbuffer = self._buffer
                 self._buffer = []
-                self._checkstr = "]=,\"'"
+                self._checkstr = OPTION_SPECIALS
                 self._options = OrderedDict()
                 self._key = ""
                 
@@ -188,14 +231,15 @@ class HSDParser:
                 self._options[key] = value.strip()
                 self._flag_option = False
                 self._buffer = self._oldbuffer
-                self._checkstr = "={};#[]'\""
+                self._checkstr = GENERAL_SPECIALS
                 
             elif sign == "'" or sign == '"':
                 if self._flag_quote:
-                    self._checkstr = "={};#[]'\""
+                    self._checkstr = self._oldcheckstr
                     self._flag_quote = False
                     self._buffer.append(before + sign)
                 else:
+                    self._oldcheckstr = self._checkstr
                     self._checkstr = sign
                     self._flag_quote = True
                     self._buffer.append(sign)
@@ -204,7 +248,18 @@ class HSDParser:
                 value = "".join(self._buffer) + before
                 key = self._key if self._key else self._defattrib
                 self._options[key] = value.strip()
-                    
+                
+            elif sign == "<":
+                self._buffer.append(before)
+                if after.startswith("<<"):
+                    self._buffer.append(self._interrupt_txt(after[2:]))
+                    break
+                elif after.startswith("<!"):
+                    self._interrupt_hsd(after[2:])
+                    break
+                else:
+                    self._buffer.append(sign)
+                                    
             line = after
 
                             
@@ -252,28 +307,6 @@ class HSDParser:
             self.error_handler(SYNTAX_ERROR)
             
             
-def splitbycharset(txt, charset):
-    """Splits a string at the first occurrence of a character in a set.
-    
-    Args:
-        txt: Text to split.
-        chars: Chars to look for (specified as string).
-        
-    Returns:
-        (char, before, after) where char is the character from the character
-        set which has been found as first; before and after are the substrings
-        before and after it. If none of the characters had been found in the
-        text, char and after are set to the empty string and before to the 
-        entrire string.
-    """
-    for firstpos, char in enumerate(txt):
-        if char in charset:
-            break
-    else:
-        return '',  txt, '' 
-    return txt[firstpos], txt[:firstpos], txt[firstpos+1:]
-
-            
 if __name__ == "__main__":
     from io import StringIO
     from hsd.formatter import HSDStreamFormatter, HSDFormatter
@@ -319,6 +352,7 @@ Options {
   RestartFrequency = 20
   RandomSeed = 0
   WriteHS = No
-}""")
+}
+""")
     streamformatter.feed(stream)
     

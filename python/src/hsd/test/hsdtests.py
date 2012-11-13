@@ -18,7 +18,7 @@ ERROR = 4
 hsdtests_simple = [
     # Tag without value
     ([ "test {}", "test{}", "test { }", "test{\n}", "test {\n\n }",
-      "test = {}"  ], 
+      "test = {}", "test { # remark\n#remark2\n }"  ], 
      [ (OPEN, "test", {}, {}), (CLOSE, "test") ]),
     # Tag with bracketed value
     ([ "test {\n12\n}", "test{12}", "test{\n12}", "test = {\n12\n} "],
@@ -90,6 +90,10 @@ hsdtests_defattr = [
        "test [unit = Kelvin,\ndimension\n=3]\n{}" ],
      [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")]), {}),
        (CLOSE, "test") ]),
+     ([ 'test [unit=Kelvin,dimension="\n3"] {}' ],
+     [ (OPEN, "test", OrderedDict([("unit","Kelvin"), ("dimension", '"\n3"')]),
+        {}), (CLOSE, "test") ]),
+    
     ]
 
 # Explicit attributes
