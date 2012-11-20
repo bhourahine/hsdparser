@@ -28,7 +28,6 @@ class HSDParser:
         self._oldcheckstr = ""
         self._currenttags = []             # opened tags
         self._currenttags_flags = []
-        self._brackets = 0
         self._buffer = []
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
@@ -121,7 +120,7 @@ class HSDParser:
         raise HSDParserError(error_msg)
     
     
-    def _interrupt_hsd(self, command):
+    def interrupt_handler_hsd(self, command):
         """Handles hsd type interrupt.
         
         The base class implements following handling: Command is interpreted as
@@ -140,7 +139,7 @@ class HSDParser:
         parser.feed(fname)
 
     
-    def _interrupt_txt(self, command):
+    def interrupt_handler_txt(self, command):
         """Handles text type interrupt.
         
         The base class implements following handling: Command is interpreted as
@@ -169,13 +168,11 @@ class HSDParser:
 
             # Reached end of line without special character    
             if not sign:
-                if self._flag_quote or self._flag_option:
-                    self._buffer.append(before)
-                elif self._flag_equalsign:
+                if self._flag_equalsign and not self._flag_quote:
                     self._flag_equalsign = False
                     self._text("".join(self._buffer) + before)
                     self._closetag()
-                elif self._brackets:
+                else:
                     self._buffer.append(before)
                 break
             
@@ -189,7 +186,7 @@ class HSDParser:
                     self._buffer.append(before)
                 else:
                     self._hsdoptions[HSDATTR_EQUAL] = True
-                    self._starttag("".join(self._buffer) + before)
+                    self._starttag("".join(self._buffer) + before, False)
                     self._flag_equalsign = True
                     
             elif sign == "=" and self._flag_option:
@@ -200,12 +197,10 @@ class HSDParser:
                 self._starttag("".join(self._buffer) + before,
                                self._flag_equalsign)
                 self._flag_equalsign = False
-                self._brackets += 1
                 
             elif sign == "}":
                 self._text("".join(self._buffer) + before)
                 self._closetag()
-                self._brackets -= 1
                 
             elif sign == ";":
                 self._flag_equalsign = False
@@ -250,15 +245,18 @@ class HSDParser:
                 self._options[key] = value.strip()
                 
             elif sign == "<":
-                self._buffer.append(before)
-                if after.startswith("<<"):
-                    self._buffer.append(self._interrupt_txt(after[2:]))
+                txtint = after.startswith("<<")
+                hsdint = after.startswith("<!")
+                if txtint:
+                    self._text("".join(self._buffer) + before)
+                    self._buffer = []
+                    self.text_handler(self.interrupt_handler_txt(after[2:]))
                     break
-                elif after.startswith("<!"):
-                    self._interrupt_hsd(after[2:])
+                elif hsdint:
+                    self.interrupt_handler_hsd(after[2:])
                     break
                 else:
-                    self._buffer.append(sign)
+                    self._buffer.append(before + sign)
                                     
             line = after
 
@@ -269,7 +267,7 @@ class HSDParser:
             self.text_handler(stripped)
 
             
-    def _starttag(self, tagname, flag_tag=False):
+    def _starttag(self, tagname, closeprev):
         tagname_stripped = tagname.strip()
         if len(tagname.split()) > 1:
             self._flag_syntax = True
@@ -279,19 +277,16 @@ class HSDParser:
         self.start_handler(tagname_stripped, self._options, self._hsdoptions)
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
-        self._currenttags.append((tagname_stripped, self._curr_line))
-        self._currenttags_flags.append(flag_tag)
+        self._currenttags.append((tagname_stripped, self._curr_line, closeprev))
 
         
     def _closetag(self):
         if not self._currenttags:
             self.error_handler(1, (0, self._curr_line))
         self._buffer = []
-        self.close_handler(self._currenttags[-1][0])
-        del self._currenttags[-1]
-        flag_tag = self._currenttags_flags[-1]
-        del self._currenttags_flags[-1]
-        if flag_tag:
+        tag, line, closeprev = self._currenttags.pop() 
+        self.close_handler(tag)
+        if closeprev:
             self._closetag()
 
             
@@ -301,7 +296,7 @@ class HSDParser:
                                (self._currenttags[-1][1], self._curr_line))
         elif self._flag_quote:
             self.error_handler(QUOTATION_ERROR)
-        elif self._brackets != 0:
+        elif self._currenttags:
             self.error_handler(BRACKET_ERROR)
         elif self._flag_syntax:
             self.error_handler(SYNTAX_ERROR)
