@@ -87,7 +87,7 @@ hsdtests_defattr = [
      [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")]), {}),
        (CLOSE, "test") ]),
      ([ "test [unit=Kelvin,dimension=3] {}",
-       "test [unit = Kelvin,\ndimension\n=3]\n{}" ],
+       "test [unit = Kelvin,\ndimension=3]{\n}" ],
      [ (OPEN, "test", OrderedDict([("unit","Kelvin"),("dimension","3")]), {}),
        (CLOSE, "test") ]),
      ([ 'test [unit=Kelvin,dimension="\n3"] {}' ],

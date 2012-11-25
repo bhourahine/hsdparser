@@ -26,7 +26,7 @@ class ParserTestCase(unittest.TestCase):
     def _text_handler(self, txt):
         self._result.append((hsdtests.TEXT, txt))
         
-    def _error_handler(self, errorcode, errorpos):
+    def _error_handler(self, errorcode, filename, errorpos):
         self._result.append((hsdtests.ERROR, errorcode))
         
     def _launch_parser(self):

@@ -3,15 +3,16 @@ from collections import OrderedDict
 
 
 __all__ = [ "HSDParserError", "HSDParser",
-           "SYNTAX_ERROR", "TAG_ERROR", "QUOTATION_ERROR", "BRACKET_ERROR" ]
+           "SYNTAX_ERROR", "UNCLOSED_TAG_ERROR", "QUOTATION_ERROR", "BRACKET_ERROR" ]
 
 SYNTAX_ERROR = 1
-TAG_ERROR = 2
-QUOTATION_ERROR = 3
-BRACKET_ERROR = 4
+UNCLOSED_TAG_ERROR = 2
+UNCLOSED_OPTION_ERROR = 3
+UNCLOSED_QUOTATION_ERROR = 4
+ORPHAN_TEXT_ERROR = 5
 
-GENERAL_SPECIALS = "={}#[]'\";<"
-OPTION_SPECIALS = "]=,\"'"
+GENERAL_SPECIALS = "{}[]<=\"'#;"
+OPTION_SPECIALS = ",]=\"'#{};"
 
 class HSDParser:
     """Event based parser for the Human-readable Structured Data format.
@@ -23,21 +24,21 @@ class HSDParser:
     def __init__(self, defattrib="default"):
         """Intializes a HSDParser instance.
         """
+        self._fname = ""                   # Name of file being processed
         self._defattrib = defattrib        # def. attribute name
         self._checkstr = GENERAL_SPECIALS  # special characters to look for
-        self._oldcheckstr = ""
-        self._currenttags = []             # opened tags
-        self._currenttags_flags = []
-        self._buffer = []
-        self._options = OrderedDict()
-        self._hsdoptions = OrderedDict()
-        self._key = ""
-        self._curr_line = 0
-        # Flags
-        self._flag_equalsign = False
-        self._flag_option = False
-        self._flag_quote = False
-        self._flag_syntax = False
+        self._oldcheckstr = ""             # buffer fo checkstr
+        self._currenttags = []             # info about opened tags
+        self._buffer = []                  # buffering plain text between lines 
+        self._options = OrderedDict()      # options for current tag
+        self._hsdoptions = OrderedDict()   # hsd-options for current tag
+        self._key = ""                     # current option name
+        self._currline = 0                 # nr. of current line in file
+        self._flag_equalsign = False       # last tag was opened with equal sign
+        self._flag_option = False          # parser inside option specification
+        self._flag_quote = False           # parser inside quotation
+        self._flag_haschild = False
+        self._oldbefore = ""         
 
         
     def feed(self, fileobj):
@@ -52,13 +53,25 @@ class HSDParser:
             self._fname = fileobj
         else:
             fp = fileobj
-            self._fname = ""
         for line in fp.readlines():
             self._parse(line)
-            self._curr_line += 1
+            self._currline += 1
         if isfilename:
             fp.close()
-        self._error()
+        
+        # Check for errors
+        if self._currenttags:
+            line0 = self._currenttags[-1][1]
+        else:
+            line0 = 0
+        if self._flag_quote:
+            self._error(UNCLOSED_QUOTATION_ERROR, (line0, self._currline))
+        elif self._flag_option:
+            self._error(UNCLOSED_OPTION_ERROR, (line0, self._currline))
+        elif self._currenttags:
+            self._error(UNCLOSED_TAG_ERROR, (line0, line0))
+        elif ("".join(self._buffer)).strip():
+            self._error(ORPHAN_TEXT_ERROR, (line0, self._currline))
 
         
     def start_handler(self, tagname, options, hsdoptions):
@@ -102,21 +115,19 @@ class HSDParser:
         pass
 
         
-    def error_handler(self, error_code, error_line=(-1,-1)):
+    def error_handler(self, error_code, file, lines):
         """Handler which is called if an error was detected during parsing.
         
         The default implementation throws a HSDException or a descendant of it.
         
         Args:
-            error_code: Code for signalizing the type of the error. Currently
-                implemented codes are:
-                    TAG_ERROR: Tag-Error
-                    QUOTATION_ERROR: Quotation-Error
-                    BRACKET_ERROR: Bracket-Error
-            error_line: Lines between the error occurred. Default is (-1,-1)
+            error_code: Code for signalizing the type of the error.
+            file: Current file name (empty string if not known).
+            lines: Lines between the error occurred.
         """
-        error_msg = "Parsing error ({}) between lines {} - {}.".format(
-            error_code, error_line[0] + 1, error_line[1] + 1)
+        error_msg = (
+            "Parsing error ({}) between lines {} - {} in file '{}'.".format(
+            error_code, lines[0] + 1, lines[1] + 1, file))
         raise HSDParserError(error_msg)
     
     
@@ -166,85 +177,109 @@ class HSDParser:
         while True:
             sign, before, after = splitbycharset(line, self._checkstr)
 
-            # Reached end of line without special character    
+            # End of line    
             if not sign:
-                if self._flag_equalsign and not self._flag_quote:
-                    self._flag_equalsign = False
-                    self._text("".join(self._buffer) + before)
-                    self._closetag()
-                else:
+                if self._flag_quote:
                     self._buffer.append(before)
+                elif self._flag_equalsign:
+                    self._text("".join(self._buffer) + before.strip())
+                    self._closetag()
+                    self._flag_equalsign = False 
+                elif not self._flag_haschild and not self._flag_option:
+                    self._buffer.append(before)
+                elif before.strip():
+                    self._error(SYNTAX_ERROR, (self._currline, self._currline))
                 break
             
             # Special character is escaped
             elif before.endswith("\\") and not before.endswith("\\\\"):
                 self._buffer.append(before + sign)
                 
+            # Equal sign outside option specification
             elif sign == "=" and not self._flag_option:
                 # Ignore if followed by "{" (DFTB+ compatibility)
                 if after.lstrip().startswith("{"):
-                    self._buffer.append(before)
+                    self._oldbefore = before
                 else:
+                    self._flag_haschild = True
                     self._hsdoptions[HSDATTR_EQUAL] = True
-                    self._starttag("".join(self._buffer) + before, False)
+                    self._starttag(before, False)
                     self._flag_equalsign = True
                     
-            elif sign == "=" and self._flag_option:
-                self._key = ("".join(self._buffer) + before).strip()
+            # Equal sign inside option specification
+            elif sign == "=":
+                self._key = before.strip()
                 self._buffer = []
                 
-            elif sign == "{":
-                self._starttag("".join(self._buffer) + before,
-                               self._flag_equalsign)
+            # Opening tag by curly brace
+            elif sign == "{" and not self._flag_option:
+                self._flag_haschild = True
+                self._starttag(before, self._flag_equalsign)
+                self._buffer = []
                 self._flag_equalsign = False
-                
-            elif sign == "}":
+
+            # Closing tag by curly brace
+            elif (sign == "}" and not self._flag_equalsign
+                  and not self._flag_option):
                 self._text("".join(self._buffer) + before)
+                self._buffer = []
                 self._closetag()
-                
-            elif sign == ";":
+            
+            # Closing tag by semicolon
+            elif sign == ";" and self._flag_equalsign and not self._flag_option:
                 self._flag_equalsign = False
                 self._text(before)
                 self._closetag()
                 
+            # Comment line
             elif sign == "#":
                 self._buffer.append(before)
                 after = ""
             
-            elif sign == "[":
-                self._flag_option = True
-                self._buffer.append(before)
-                self._oldbuffer = self._buffer
+            # Opening option specification
+            elif sign == "[" and not self._flag_option:
+                if "".join(self._buffer).strip():
+                    self._error(SYNTAX_ERROR, (self._currline, self._currline))
+                self._oldbefore = before
                 self._buffer = []
-                self._checkstr = OPTION_SPECIALS
-                self._options = OrderedDict()
+                self._flag_option = True
                 self._key = ""
-                
-            elif sign == "]":
+                self._currenttags.append(("[", self._currline, None))
+                self._checkstr = OPTION_SPECIALS
+            
+            # Closing option specification
+            elif sign == "]" and self._flag_option:
                 value = "".join(self._buffer) + before
                 key = self._key if self._key else self._defattrib
                 self._options[key] = value.strip()
                 self._flag_option = False
-                self._buffer = self._oldbuffer
+                self._buffer = []
+                self._currenttags.pop()
                 self._checkstr = GENERAL_SPECIALS
                 
+            # Quoting strings
             elif sign == "'" or sign == '"':
                 if self._flag_quote:
                     self._checkstr = self._oldcheckstr
                     self._flag_quote = False
                     self._buffer.append(before + sign)
+                    self._currenttags.pop()
                 else:
                     self._oldcheckstr = self._checkstr
                     self._checkstr = sign
                     self._flag_quote = True
                     self._buffer.append(sign)
-                    
-            elif sign == ",":
+                    self._currenttags.append(('"', self._currline, None))
+            
+            # Closing attribute specification
+            elif sign == "," and self._flag_option:
                 value = "".join(self._buffer) + before
                 key = self._key if self._key else self._defattrib
                 self._options[key] = value.strip()
                 
-            elif sign == "<":
+            # Interrupt
+            elif (sign == "<" and not self._flag_option 
+                  and not self._flag_equalsign):
                 txtint = after.startswith("<<")
                 hsdint = after.startswith("<!")
                 if txtint:
@@ -257,6 +292,9 @@ class HSDParser:
                     break
                 else:
                     self._buffer.append(before + sign)
+                    
+            else:
+                self._error(SYNTAX_ERROR, (self._currline, self._currline))
                                     
             line = after
 
@@ -268,38 +306,42 @@ class HSDParser:
 
             
     def _starttag(self, tagname, closeprev):
+        if "".join(self._buffer).strip():
+            if self._currenttags:
+                line0 = self._currenttags[-1][1]
+            else:
+                line0 = 0
+            self._error(SYNTAX_ERROR, (line0, self._currline))
         tagname_stripped = tagname.strip()
-        if len(tagname.split()) > 1:
-            self._flag_syntax = True
-            self._error()
-        self._buffer = []
-        self._hsdoptions[HSDATTR_LINE] = self._curr_line
+        if self._oldbefore:
+            if tagname_stripped:
+                self._error(SYNTAX_ERROR, ( self._currline, self._currline ))
+            else:
+                tagname_stripped = self._oldbefore.strip()
+        if len(tagname_stripped.split()) > 1:
+            self._error(SYNTAX_ERROR, (self._currline, self._currline))
+        self._hsdoptions[HSDATTR_LINE] = self._currline
         self.start_handler(tagname_stripped, self._options, self._hsdoptions)
+        self._currenttags.append(
+            ( tagname_stripped, self._currline, closeprev, self._flag_haschild))
+        self._buffer = []
+        self._oldbefore = ""
+        self._flag_haschild = False
         self._options = OrderedDict()
         self._hsdoptions = OrderedDict()
-        self._currenttags.append((tagname_stripped, self._curr_line, closeprev))
 
         
     def _closetag(self):
         if not self._currenttags:
-            self.error_handler(1, (0, self._curr_line))
+            self._error(SYNTAX_ERROR, (0, self._currline))
         self._buffer = []
-        tag, line, closeprev = self._currenttags.pop() 
+        tag, line, closeprev, self._flag_haschild = self._currenttags.pop() 
         self.close_handler(tag)
         if closeprev:
             self._closetag()
-
             
-    def _error(self):
-        if self._currenttags:
-            self.error_handler(TAG_ERROR,
-                               (self._currenttags[-1][1], self._curr_line))
-        elif self._flag_quote:
-            self.error_handler(QUOTATION_ERROR)
-        elif self._currenttags:
-            self.error_handler(BRACKET_ERROR)
-        elif self._flag_syntax:
-            self.error_handler(SYNTAX_ERROR)
+    def _error(self, code, lines):
+        self.error_handler(code, self._fname, lines)
             
             
 if __name__ == "__main__":
